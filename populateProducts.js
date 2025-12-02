@@ -10,7 +10,7 @@ readline.question('Enter password: ', pass => { // read password
     dBCon = mysql.createConnection({ // MySQL database
         host: "localhost",
         user: "root",
-        database: "lifesynchub",
+        database: "primenest",
         password: pass
     });
     dBCon.connect(function(err) { if (err) throw err; });

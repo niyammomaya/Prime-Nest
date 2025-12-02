@@ -48,7 +48,7 @@ readline.question('Enter password: ', pass => { // read password
     dBCon = mysql.createConnection({ // MySQL database
         host: "localhost",
         user: "root",
-        database: "lifesynchub",
+        database: "primenest",
         password: pass
     });
     dBCon.connect(function(err) { if (err) throw err; });
@@ -378,9 +378,9 @@ async function forgotPassword(userInfo) {
         return failedDB();
     }
     await transporter.sendMail({
-        from: '"LifeSyncHub" <ryley.aufderhar@ethereal.email>', // sender address
+        from: '"primenest" <ryley.aufderhar@ethereal.email>', // sender address
         to: userInfo.email, // list of receivers
-        subject: "LifeSyncHub Temporary Password", // Subject line
+        subject: "primenest Temporary Password", // Subject line
         text: "Temporary Password: " + temppass + "\n\nThis password will work for exactly 15 minutes, unless replaced by a new temporary password.", // plain text body
     });
     resMsg.code = 200;
