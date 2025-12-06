@@ -13,6 +13,7 @@
             <a href="/cart.html">Cart</a>
         </nav>
         <div class="controls" style="margin-top:0;">
+            <a href="/dashboard"><button type="button">Dashboard</button></a>
             <button type="button" onclick="signOut()">Sign out</button>
         </div>
     </header>
@@ -21,7 +22,7 @@
             <h2>Your Cart</h2>
             <p class="tagline">Items you've added plus a running total.</p>
             <div class="controls">
-                <a href="/checkout.html"><button type="button">Proceed to Checkout</button></a>
+                <button type="button" onclick="startCheckout()">Checkout Now</button>
             </div>
             <div id="cart-items" class="stack"></div>
             <div id="cart-total" class="cart-total"></div>
@@ -48,32 +49,42 @@
                 }
                 const data = await res.json();
                 if (data.items && data.items.length > 0) {
+                    const grouped = groupByCategory(data.items);
                     const list = document.createElement('div');
                     list.className = 'stack';
-                    data.items.forEach(item => {
-                        const row = document.createElement('div');
-                        row.className = 'card cart-item';
-                    row.innerHTML = `
-                        <div>
-                            <strong>${item.name}</strong>
-                            <div class="muted">Price: $${(item.price ?? 0).toFixed(2)}</div>
-                            <div class="muted">Qty: ${item.quantity}</div>
-                        </div>
-                        <div style="text-align:right;">
-                            <div class="price">$${(item.price * item.quantity).toFixed(2)}</div>
-                            <div class="controls">
-                                <button type="button" data-action="remove" style="background:#d14343;">Remove</button>
-                            </div>
-                        </div>
-                    `;
-                    row.querySelector('button[data-action="remove"]').onclick = () => removeCartItem(item.product_ID);
-                    list.appendChild(row);
-                });
-                cartEl.innerHTML = '';
-                cartEl.appendChild(list);
-                totalEl.textContent = 'Total: $' + (data.totalCost || 0).toFixed(2);
+                    Object.keys(grouped).forEach(cat => {
+                        const header = document.createElement('div');
+                        header.className = 'muted';
+                        header.textContent = (cat || 'Other').toUpperCase();
+                        list.appendChild(header);
+                        grouped[cat].forEach(item => {
+                            const row = document.createElement('div');
+                            row.className = 'card cart-item';
+                            row.innerHTML = `
+                                <div>
+                                    <strong>${item.name}</strong>
+                                    <div class="muted">ID: ${item.product_ID}</div>
+                                    <div class="muted">Price: $${(item.price ?? 0).toFixed(2)}</div>
+                                    <div class="muted">Qty: <input type="number" min="1" value="${item.quantity}" style="width:70px;" data-qty="${item.product_ID}"></div>
+                                </div>
+                                <div style="text-align:right;">
+                                    <div class="price">$${(item.price * item.quantity).toFixed(2)}</div>
+                                    <div class="controls">
+                                        <button type="button" data-action="remove" style="background:#d14343;">Remove</button>
+                                    </div>
+                                </div>
+                            `;
+                            row.querySelector('button[data-action="remove"]').onclick = () => removeCartItem(item.product_ID);
+                            const qtyInput = row.querySelector(`input[data-qty="${item.product_ID}"]`);
+                            qtyInput.addEventListener('change', () => updateQty(item.product_ID));
+                            list.appendChild(row);
+                        });
+                    });
+                    cartEl.innerHTML = '';
+                    cartEl.appendChild(list);
+                    totalEl.textContent = 'Total: $' + (data.totalCost || 0).toFixed(2);
                 } else {
-                cartEl.innerHTML = '<p class="muted">Your cart is empty - start shopping in the Store!</p>';
+                    cartEl.innerHTML = '<p class="muted">Your cart is empty - start shopping in the Store!</p>';
                     totalEl.textContent = '';
                 }
             } catch (err) {
@@ -83,11 +94,11 @@
             }
         }
 
-    async function removeCartItem(productId) {
-        try {
-            const res = await fetch('/shopping-cart/products/' + encodeURIComponent(productId), {
-                method: 'DELETE'
-            });
+        async function removeCartItem(productId) {
+            try {
+                const res = await fetch('/shopping-cart/products/' + encodeURIComponent(productId), {
+                    method: 'DELETE'
+                });
                 if (!res.ok) {
                     const msg = await res.text();
                     alert('Could not remove item: ' + msg);
@@ -97,6 +108,60 @@
             } catch (err) {
                 alert('Error removing item');
             }
+        }
+
+        async function updateQty(productId) {
+            const input = document.querySelector(`input[data-qty="${productId}"]`);
+            const newQty = parseInt(input.value, 10);
+            if (!newQty || newQty < 1) {
+                alert('Quantity must be at least 1');
+                return;
+            }
+            try {
+                const res = await fetch('/shopping-cart/products/' + encodeURIComponent(productId), {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ quantity: newQty })
+                });
+                if (!res.ok) {
+                    const msg = await res.text();
+                    alert('Could not update quantity: ' + msg);
+                    return;
+                }
+                loadCart();
+            } catch (err) {
+                alert('Error updating quantity');
+            }
+        }
+
+        async function startCheckout() {
+            const status = document.getElementById('cart-total');
+            status.textContent = 'Starting checkout...';
+            try {
+                const res = await fetch('/create-checkout-session', { method: 'POST' });
+                if (!res.ok) {
+                    const msg = await res.text();
+                    status.textContent = 'Checkout failed: ' + msg;
+                    return;
+                }
+                const data = await res.json();
+                if (data.url) {
+                    window.location = data.url;
+                } else {
+                    status.textContent = 'Checkout failed: no session URL.';
+                }
+            } catch (err) {
+                status.textContent = 'Checkout error.';
+            }
+        }
+
+        function groupByCategory(items) {
+            return items.reduce((acc, item) => {
+                const cat = item.category || 'Other';
+                if (!acc[cat]) acc[cat] = [];
+                acc[cat].push(item);
+                return acc;
+            }, {});
         }
 
         loadCart();

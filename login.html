@@ -39,7 +39,12 @@
             if (a.status == 200) {
                 window.location = "/store";
             } else {
-                alert("Failed to log in.");
+                const msg = await a.text();
+                if (a.status === 403) {
+                    alert("Non-valid educational account!");
+                } else {
+                    alert(msg || "Failed to log in.");
+                }
             }
         }
         window.onload = function () {

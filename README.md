@@ -1,96 +1,77 @@
 # PrimeNest
 
-A simple ecommerce demo for college students with Google sign-in, product browsing, cart, and Stripe Checkout.
+PrimeNest is a mini ecommerce site we built for class. It runs on a vanilla Node.js HTTP server plus MySQL, handles Google sign-in, products/search, carts, orders, reviews, and Stripe Checkout, and serves simple HTML pages that call the API with fetch.
 
-## Features
-- Google-only auth (JWT cookie); unauthorized users are redirected to Home.
-- Store with search, category filter, min/max price, min rating, and sorting.
-- Mock products with quick details (manufacturer, use cases); add to cart inline.
-- Cart page with totals and removal; checkout page that creates a Stripe Checkout session.
-- Basic Stripe success/cancel handling (cancel returns to checkout).
-- Minimal solid-color UI, star ratings, and short + expanded product descriptions.
+## What you can do
+- Log in with Google (JWT cookie) or use the email/password endpoints (register, change password, forgot password with a temp code emailed via Nodemailer).
+- Browse products stored in MySQL with search (MiniSearch), filters (category, price range, rating, weight), sorting, discounts, and average ratings.
+- Add to a user-bound cart, edit quantities, and keep totals in sync with discounts and availability checks.
+- Validate shipping addresses (SmartyStreets), apply discounts, and create orders. Stripe Checkout runs in test mode for payments.
+- View orders, search past orders, cancel or return them, and review products (plus helpfulness votes) when you have purchased them.
+- Use the static UI: `index.html`, `store.html`, `cart.html`, `checkout.html`; mock products show up if the DB is empty.
 
-## Project Structure
-- `server.js` — HTTP server, routing, auth, product search, cart, orders, Stripe session creation.
-- `store.html` — Store UI, filters, sort, add-to-cart.
-- `cart.html` — Cart view with totals/removal.
-- `checkout.html` — Checkout stub; calls `/create-checkout-session`.
-- `index.html` — Home + Google sign-in button, nav.
-- `login.html` / `logout.html` — Legacy login/logout pages (Google is primary).
-- `populateProducts.js` — Seeds DB from JSON.
-- `makeOrder.js` — Order creation helper.
-- `style.css` — Shared styling.
-- `primenest.sql` — DB schema (if present).
-- `cameras.json` etc. — Sample product data.
+## Stack
+- Node.js 18+ with the native `http` module in `server.js`
+- MySQL 8; schema and seed data live in `primenest.sql`
+- Stripe SDK for checkout, Google Identity Services for OAuth, SmartyStreets for address validation, MiniSearch for local search, Nodemailer for reset emails
+- Plain HTML and `style.css` for the frontend
 
-## Prereqs
-- Node.js (v18+ recommended).
-- MySQL running locally with a `primenest` database.
-- Stripe test keys.
-- Google OAuth client ID.
+## Project map
+- `server.js`: all routes (auth, catalog, cart, orders, reviews, checkout session), JWT cookie handling, discount logic.
+- `store.html`, `cart.html`, `checkout.html`, `index.html`, `login.html`: client pages that talk to the API.
+- `makeOrder.js`, `stripeServer.js`, `validateAddress.js`: order creation, hosted checkout helper (port 8001), optional address validation.
+- `populateProducts.js`: seeds MySQL from `tablets.json` and `cameras.json` (prompts for the DB password).
+- `primenest.sql`: tables for products, carts, orders, discounts, reviews, helpfulness votes, and sample data.
+- `style.css`: shared styling.
 
-## Env Vars (create a `.env` and do **not** commit)
+## Setup (local dev)
+1) Prereqs: Node 18+, MySQL running locally, Stripe test keys, Google OAuth client ID. Optional: SmartyStreets creds for address validation and SMTP creds if you want real emails instead of the built-in Ethereal test account.
+2) Install deps:
+```
+npm install
+```
+3) Configure `.env` (keep it out of git):
 ```
 DB_USER=root
-DB_PASS=yourpassword
+DB_PASS=your_mysql_password
 DB_NAME=primenest
 DB_HOST=localhost
-
 STRIPE_SECRET_KEY=sk_test_...
 STRIPE_PUBLISHABLE_KEY=pk_test_...
-GOOGLE_CLIENT_ID=391687210332-d60o4n8rp92estqtv9ejsugmo2ohpqj0.apps.googleusercontent.com
+GOOGLE_CLIENT_ID=...apps.googleusercontent.com
+SMARTY_AUTH_ID=...
+SMARTY_AUTH_TOKEN=...
 ```
-Ensure `server.js` reads these via `process.env`.
+4) Create the database and load schema/seed data:
+```
+mysql -u root -p -e "CREATE DATABASE primenest"
+mysql -u root -p primenest < primenest.sql
+# optional: bulk-load extra products
+node populateProducts.js
+```
+5) Run the server (prompts for DB password if `DB_PASS` is unset):
+```
+npm run dev
+# or
+node server.js
+```
+6) Visit `http://localhost:8000` to sign in with Google, browse `/store`, manage your cart, and check out.
 
-## Setup
-1) Install deps:
-   ```bash
-   npm install
-   ```
-   (from project root; or `npm --prefix Prime-Nest install` if using that folder).
+## How to use the app
+- Sign in: use the Google button on `/`; logout hits `/logout`. Email/password endpoints (`/user/register`, `/user/login`, `/user/forgot-password`, `/user/change-password`) exist for testing too.
+- Browse: `/store` supports text search, category/price/rating filters, and sorting. Click a card for details and reviews; add to cart with a quantity selector. Mock items appear if the DB has no products.
+- Cart: `/cart.html` lists items, totals, and remove buttons; quantities can also be edited via the cart API.
+- Checkout: `/checkout.html` builds a Stripe Checkout session from your cart; try Stripe test cards like `4242 4242 4242 4242`.
+- Orders and reviews: `/orders` returns your history; `/orders/create` places an order (used by the UI), and `/orders/cancel` or `/orders/return` undo it. Reviews live at `/product-reviews/{product_ID}`; voting on helpfulness uses `/product-reviews/{product_ID}/rate-helpful` and delete goes to `/product-reviews/delete`.
 
-2) Create DB and import schema:
-   ```sql
-   CREATE DATABASE primenest;
-   -- then import primenest.sql if provided
-   ```
-   Optionally seed products with `node populateProducts.js` (sets DB password at prompt).
+## API quick notes
+- Auth cookie: `user_ID` holds a JWT or Google ID token; `/auth-status` reports login state. Unauthed users get redirected to `/`.
+- Products: `GET /product-catalog/search?key=...` (filters in JSON body), `GET /product-catalog/{id}` for detail.
+- Cart: `GET /shopping-cart`, `POST /shopping-cart/products` to add, `PUT /shopping-cart/products/{id}` to change qty, `DELETE /shopping-cart/products/{id}` to remove, `DELETE /shopping-cart/items` to clear.
+- Orders: `POST /orders/create` (shipping + payment), `POST /orders/cancel`, `POST /orders/return`, `GET /orders` for history, `GET /orders/search?key=...` to filter by product keyword.
 
-3) Run the server:
-   ```bash
-   npm --prefix Prime-Nest run dev
-   ```
-   or `node server.js` inside `Prime-Nest`. The app listens on port 8000.
-
-4) Browse:
-   - Home: http://localhost:8000/
-   - Store: http://localhost:8000/store
-   - Cart: http://localhost:8000/cart.html
-   - Checkout: http://localhost:8000/checkout.html
-
-## Stripe Test Flow
-- Set `STRIPE_SECRET_KEY` and `STRIPE_PUBLISHABLE_KEY`.
-- Add items to cart, go to checkout, click “Place Order” to be redirected to Stripe.
-- Use Stripe test cards (e.g., 4242 4242 4242 4242).
-
-## Auth Notes
-- Only Google sign-in is intended; other login/register flows are de-emphasized.
-- `/auth-status` returns 200 when logged in; otherwise 401.
-- Protected routes redirect to `/` if not authenticated.
-
-## Filters & Sorting (Store)
-- Search: name/description/category.
-- Filters: category, min price, max price, min rating.
-- Sort: price (asc/desc), rating (desc), name (A–Z).
-
-## Mock Data
-- Mock products are in `store.html`. They are seeded into DB when added to cart if not present.
-
-## To Do / Next Steps
-- Rotate any committed secrets; ensure keys only live in `.env`.
-- Harden error handling for DB/Stripe.
-- Add real product images; add quantity stock checks; add order history UI.
-- Add unit/integration tests.
-
-## Scripts
-- `npm run dev` — start server (`node server.js`).
+## Notes and tips
+- `stripeServer.js` spins up a tiny helper on port 8001 for hosted checkout; the main app runs on port 8000.
+- Address validation is skipped (with a warning) if SmartyStreets keys are missing, so you can still demo the flow.
+- Nodemailer is preset with an Ethereal test inbox; swap in your SMTP creds for real emails.
+- Keep all secrets in `.env` and rotate any hardcoded keys before sharing or deploying beyond class demos.

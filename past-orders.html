@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Thanks for your order!</title>
+  <title>Past Orders</title>
+  <meta charset="UTF-8">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -10,7 +11,6 @@
       <a href="/">Home</a>
       <a href="/store">Store</a>
       <a href="/cart.html">Cart</a>
-      <a href="/dashboard">Dashboard</a>
     </nav>
     <div class="controls" style="margin-top:0;">
       <a href="/dashboard"><button type="button">Dashboard</button></a>
@@ -19,11 +19,21 @@
   </header>
   <main>
     <section>
-      <h2>Thanks for your order!</h2>
-      <p>
-        We appreciate your business! If you have any questions, please email
-        <a href="mailto:primenest@gmail.com">primenest@gmail.com</a>.
-      </p>
+      <h2>Past Orders</h2>
+      <p class="tagline">Mock history for quick reference.</p>
+      <div id="past-orders" class="stack">
+        <div class="card">
+          <div><strong>Order ID:</strong> MOCK-ORDER-001</div>
+          <div class="muted">Date: 2024-09-14</div>
+          <div class="muted">Status: delivered</div>
+          <div class="muted">Items:</div>
+          <ul class="muted" style="padding-left:18px;">
+            <li>Canvas Sneakers (Qty 1) - $39.99</li>
+            <li>Day Backpack (Qty 1) - $59.00</li>
+          </ul>
+          <div class="muted">Total: $98.99</div>
+        </div>
+      </div>
     </section>
   </main>
   <script>

@@ -13,6 +13,7 @@
             <a href="/cart.html">Cart</a>
         </nav>
         <div class="controls" style="margin-top:0;">
+            <a href="/dashboard"><button type="button">Dashboard</button></a>
             <button type="button" onclick="signOut()">Sign out</button>
         </div>
     </header>
@@ -22,7 +23,10 @@
                 <h2>Shop Products</h2>
                 <p class="tagline">Browse and add to cart. Click an item for details.</p>
                 <div class="controls">
-                    <input id="searchInput" type="text" placeholder="Search name, description, or category">
+                    <input id="searchInput" type="text" placeholder="Search by name">
+                    <details style="display:inline-block; border:1px solid #d1d5db; border-radius:6px; padding:6px 10px; background:#f9fafb;">
+                        <summary style="cursor:pointer; list-style:none;">Filters ▾</summary>
+                        <div class="stack" style="margin-top:8px; gap:6px; min-width:240px;">
                     <select id="filterCategory">
                         <option value="">All categories</option>
                         <option value="shoes">Shoes</option>
@@ -30,14 +34,20 @@
                         <option value="electronics">Electronics</option>
                         <option value="apparel">Apparel</option>
                     </select>
-                    <input id="minPrice" type="number" min="0" step="1" placeholder="Min $" style="width:90px;">
-                    <input id="maxPrice" type="number" min="0" step="1" placeholder="Max $" style="width:90px;">
-                    <select id="minRating">
-                        <option value="">Any rating</option>
-                        <option value="4">4+ stars</option>
-                        <option value="3">3+ stars</option>
-                        <option value="2">2+ stars</option>
-                    </select>
+                    <div style="display:flex; gap:6px;">
+                        <input id="minPrice" type="number" min="0" step="1" placeholder="Min $" style="width:100%;">
+                        <input id="maxPrice" type="number" min="0" step="1" placeholder="Max $" style="width:100%;">
+                    </div>
+                            <label class="muted" style="display:flex; flex-direction:column; gap:4px;">
+                                Min rating:
+                                <div style="display:flex; gap:8px; align-items:center;">
+                                    <input id="minRatingValue" type="text" value="1" style="width:60px; padding:6px 8px; border:1px solid #d1d5db; border-radius:6px;">
+                                    <input id="minRating" type="range" min="1" max="5" step="0.1" value="1">
+                                </div>
+                                <span class="muted" style="font-size:12px;">Type or drag to set minimum stars.</span>
+                            </label>
+                        </div>
+                    </details>
                     <select id="sortBy">
                         <option value="">Sort</option>
                         <option value="price-asc">Price: Low to High</option>
@@ -62,20 +72,83 @@
         </div>
     </main>
 
+    <main style="max-width:1200px; margin:20px auto;">
+        <section>
+            <h2>Sample Bundles</h2>
+            <p class="tagline">Quick picks for common campus needs.</p>
+            <div class="grid">
+                <div class="card">
+                    <h3>College Essentials</h3>
+                    <p class="muted">Ready-to-go basics for daily campus life.</p>
+                    <ul class="muted" style="padding-left:18px;">
+                        <li>Canvas Sneakers</li>
+                        <li>Day Backpack</li>
+                        <li>Crew Socks (3-pack)</li>
+                        <li>Cotton Tee</li>
+                    </ul>
+                    <div class="controls">
+                        <button type="button" onclick="addBundle(['MOCK-SHOE-1','MOCK-BAG-1','MOCK-SOCK-1','MOCK-TEE-1'])">Add bundle to cart</button>
+                    </div>
+                </div>
+                <div class="card">
+                    <h3>Study & Focus</h3>
+                    <p class="muted">Gear to keep you focused in class and the library.</p>
+                    <ul class="muted" style="padding-left:18px;">
+                        <li>Noise Canceling Headphones</li>
+                        <li>Messenger Bag</li>
+                        <li>In-Ear Buds (backup)</li>
+                        <li>Canvas Sneakers</li>
+                    </ul>
+                    <div class="controls">
+                        <button type="button" onclick="addBundle(['MOCK-HEAD-2','MOCK-BAG-3','MOCK-HEAD-3','MOCK-SHOE-1'])">Add bundle to cart</button>
+                    </div>
+                </div>
+                <div class="card">
+                    <h3>Weekend Travel</h3>
+                    <p class="muted">Pack light for trips home or quick getaways.</p>
+                    <ul class="muted" style="padding-left:18px;">
+                        <li>Weekend Duffel</li>
+                        <li>Day Backpack</li>
+                        <li>Trail Runners</li>
+                        <li>Wireless Headphones</li>
+                    </ul>
+                    <div class="controls">
+                        <button type="button" onclick="addBundle(['MOCK-BAG-2','MOCK-BAG-1','MOCK-SHOE-2','MOCK-HEAD-1'])">Add bundle to cart</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <main style="max-width:1200px; margin:20px auto;">
+        <!-- Reviews section removed per request -->
+    </main>
+
     <script>
         const mockProducts = [
-            { product_ID: 'MOCK-SHOE-1', name: 'Canvas Sneakers', description: 'Light canvas shoes.', long_description: 'Canvas uppers with grippy rubber soles; easy to wear to class or across campus.', manufacturer: 'Stride Co.', use_cases: ['Walking to class', 'Casual hangouts', 'Travel days'], category: 'shoes', price: 49.99, discounted_price: 39.99, average_rating: 4.4 },
-            { product_ID: 'MOCK-SHOE-2', name: 'Trail Runners', description: 'Mesh trail runners.', long_description: 'Breathable mesh with cushioned midsoles and deep lugs for weekend hikes or city parks.', manufacturer: 'Terra Footwear', use_cases: ['Campus jogs', 'Weekend trails', 'Rainy walks'], category: 'shoes', price: 89.99, discounted_price: 79.99, average_rating: 4.6 },
-            { product_ID: 'MOCK-SHOE-3', name: 'Slip-On Slides', description: 'Slides for home.', long_description: 'Soft footbed and quick-dry straps you can wear for dorm showers, pool, or lounging.', manufacturer: 'EasyStep', use_cases: ['Dorm showers', 'Pool days', 'Post-gym'], category: 'shoes', price: 24.00, discounted_price: 20.00, average_rating: 4.1 },
-            { product_ID: 'MOCK-BAG-1', name: 'Day Backpack', description: 'Daily laptop pack.', long_description: 'Padded laptop sleeve, bottle pockets, and a front stash for keys and small tech.', manufacturer: 'Northline', use_cases: ['Class commutes', 'Library days', 'Weekend trips'], category: 'bags', price: 59.00, discounted_price: 59.00, average_rating: 4.2 },
-            { product_ID: 'MOCK-BAG-2', name: 'Weekend Duffel', description: 'Soft canvas duffel.', long_description: "Carry-on sized duffel that fits a weekend's clothes plus a side pocket for shoes.", manufacturer: 'Northline', use_cases: ['Weekend visits', 'Gym gear', 'Carry-on travel'], category: 'bags', price: 74.00, discounted_price: 68.00, average_rating: 4.1 },
-            { product_ID: 'MOCK-BAG-3', name: 'Messenger Bag', description: 'Slim shoulder bag.', long_description: 'Slim shoulder bag with quick-access flap, padded tablet sleeve, and simple organizers.', manufacturer: 'Urban Thread', use_cases: ['Light class days', 'Coffee shop study', 'Interviews'], category: 'bags', price: 52.00, discounted_price: 49.00, average_rating: 4.0 },
-            { product_ID: 'MOCK-HEAD-1', name: 'Wireless Headphones', description: 'Over-ear wireless.', long_description: '30-hour battery, plush cushions, and easy Bluetooth pairing for music or lectures.', manufacturer: 'SoundLab', use_cases: ['Study playlists', 'Zoom classes', 'Gym sessions'], category: 'electronics', price: 89.00, discounted_price: 69.00, average_rating: 4.6 },
-            { product_ID: 'MOCK-HEAD-2', name: 'Noise Canceling', description: 'Quiet travel pair.', long_description: 'Active noise canceling with fold-flat hinges and a travel case for flights or dorm focus.', manufacturer: 'QuietTune', use_cases: ['Library focus', 'Flights home', 'Roommate noise'], category: 'electronics', price: 129.00, discounted_price: 109.00, average_rating: 4.7 },
-            { product_ID: 'MOCK-HEAD-3', name: 'In-Ear Buds', description: 'Simple wired buds.', long_description: 'Wired buds with in-line mic and soft tips; easy backup for laptop or phone.', manufacturer: 'SoundLab', use_cases: ['Back-up audio', 'Walking between classes', 'Phone calls'], category: 'electronics', price: 19.00, discounted_price: 15.00, average_rating: 4.0 },
-            { product_ID: 'MOCK-SOCK-1', name: 'Crew Socks (3-pack)', description: 'Soft crew socks.', long_description: 'Cotton blend socks with cushioned heel and toe in neutral colors.', manufacturer: 'CozyKnit', use_cases: ['Everyday wear', 'Gym bag spare', 'Cold lecture halls'], category: 'apparel', price: 14.99, discounted_price: 12.99, average_rating: 4.8 },
-            { product_ID: 'MOCK-TEE-1', name: 'Cotton Tee', description: 'Plain soft tee.', long_description: 'Relaxed fit cotton tee with a smooth neckline for layering.', manufacturer: 'Everyday Threads', use_cases: ['Layering', 'Casual days', 'Sleep tee'], category: 'apparel', price: 19.99, discounted_price: 17.99, average_rating: 4.3 },
-            { product_ID: 'MOCK-TIE-1', name: 'Navy Tie', description: 'Simple silk tie.', long_description: 'Matte silk tie with a clean drape and simple navy color.', manufacturer: 'Civic Tailors', use_cases: ['Presentations', 'Career fair', 'Date night'], category: 'apparel', price: 29.00, discounted_price: 24.00, average_rating: 4.2 }
+            { product_ID: 'MOCK-SHOE-1', name: 'Canvas Sneakers', description: 'Light canvas shoes.', long_description: 'Canvas uppers with grippy rubber soles; easy to wear to class or across campus.', manufacturer: 'Stride Co.', use_cases: ['commute', 'travel', 'casual hangouts', 'walking to class'], category: 'shoes', price: 49.99, discounted_price: 39.99, average_rating: 4.4, review_count: 10, rating_distribution: [0,1,2,3,4] },
+            { product_ID: 'MOCK-SHOE-2', name: 'Trail Runners', description: 'Breathable mesh trail runners with cushioned midsoles and deep lugs for hikes and city runs.', long_description: 'Breathable mesh uppers, cushioned midsoles, and deep lugs for traction on weekend hikes or rainy city runs.', manufacturer: 'Terra Footwear', use_cases: ['gym', 'commute', 'travel', 'weekend trails'], category: 'shoes', price: 89.99, discounted_price: 79.99, average_rating: 4.6, review_count: 10, rating_distribution: [0,0,2,3,5] },
+            { product_ID: 'MOCK-SHOE-3', name: 'Slip-On Slides', description: 'Slides for home.', long_description: 'Soft footbed and quick-dry straps you can wear for dorm showers, pool, or lounging.', manufacturer: 'EasyStep', use_cases: ['dorm', 'post-gym', 'pool days'], category: 'shoes', price: 24.00, discounted_price: 20.00, average_rating: 4.1, review_count: 10, rating_distribution: [0,1,3,3,3] },
+            { product_ID: 'MOCK-BAG-1', name: 'Day Backpack', description: 'Daily laptop pack.', long_description: 'Padded laptop sleeve, bottle pockets, and a front stash for keys and small tech.', manufacturer: 'Northline', use_cases: ['commute', 'study', 'travel', 'photo', 'gym'], category: 'bags', price: 59.00, discounted_price: 59.00, average_rating: 4.2, review_count: 10, rating_distribution: [0,1,2,3,4] },
+            { product_ID: 'MOCK-BAG-2', name: 'Weekend Duffel', description: 'Soft canvas duffel.', long_description: "Carry-on sized duffel that fits a weekend's clothes plus a side pocket for shoes.", manufacturer: 'Northline', use_cases: ['travel', 'gym', 'weekend visits'], category: 'bags', price: 74.00, discounted_price: 68.00, average_rating: 4.1, review_count: 10, rating_distribution: [0,1,3,3,3] },
+            { product_ID: 'MOCK-BAG-3', name: 'Messenger Bag', description: 'Slim shoulder bag.', long_description: 'Slim shoulder bag with quick-access flap, padded tablet sleeve, and simple organizers.', manufacturer: 'Urban Thread', use_cases: ['study', 'work', 'commute'], category: 'bags', price: 52.00, discounted_price: 49.00, average_rating: 4.0, review_count: 10, rating_distribution: [0,1,3,3,3] },
+            { product_ID: 'MOCK-HEAD-1', name: 'Wireless Headphones', description: 'Over-ear wireless.', long_description: '30-hour battery, plush cushions, and easy Bluetooth pairing for music or lectures.', manufacturer: 'SoundLab', use_cases: ['study', 'work', 'commute', 'gaming'], category: 'electronics', price: 89.00, discounted_price: 69.00, average_rating: 4.6, review_count: 10, rating_distribution: [0,0,2,3,5] },
+            { product_ID: 'MOCK-HEAD-2', name: 'Noise Canceling', description: 'Quiet travel pair.', long_description: 'Active noise canceling with fold-flat hinges and a travel case for flights or dorm focus.', manufacturer: 'QuietTune', use_cases: ['study', 'travel', 'work', 'dorm'], category: 'electronics', price: 129.00, discounted_price: 109.00, average_rating: 4.7, review_count: 10, rating_distribution: [0,0,1,3,6] },
+            { product_ID: 'MOCK-HEAD-3', name: 'In-Ear Buds', description: 'Simple wired buds.', long_description: 'Wired buds with in-line mic and soft tips; easy backup for laptop or phone.', manufacturer: 'SoundLab', use_cases: ['commute', 'backup audio', 'gaming'], category: 'electronics', price: 19.00, discounted_price: 15.00, average_rating: 4.0, review_count: 10, rating_distribution: [0,1,3,3,3] },
+            { product_ID: 'MOCK-SOCK-1', name: 'Crew Socks (3-pack)', description: 'Soft crew socks.', long_description: 'Cotton blend socks with cushioned heel and toe in neutral colors.', manufacturer: 'CozyKnit', use_cases: ['gym', 'dorm', 'everyday wear'], category: 'apparel', price: 14.99, discounted_price: 12.99, average_rating: 4.1, review_count: 10, rating_distribution: [0,1,3,3,3] },
+            { product_ID: 'MOCK-TEE-1', name: 'Cotton Tee', description: 'Plain soft tee.', long_description: 'Relaxed fit cotton tee with a smooth neckline for layering.', manufacturer: 'Everyday Threads', use_cases: ['casual days', 'dorm', 'layering'], category: 'apparel', price: 19.99, discounted_price: 17.99, average_rating: 4.2, review_count: 10, rating_distribution: [0,1,2,3,4] },
+            { product_ID: 'MOCK-TIE-1', name: 'Navy Tie', description: 'Simple silk tie.', long_description: 'Matte silk tie with a clean drape and simple navy color.', manufacturer: 'Civic Tailors', use_cases: ['work', 'presentations', 'interviews'], category: 'apparel', price: 29.00, discounted_price: 24.00, average_rating: 4.0, review_count: 10, rating_distribution: [0,1,3,3,3] },
+            { product_ID: 'MOCK-BOTTLE-1', name: 'Insulated Water Bottle', description: 'Stainless 24oz bottle.', long_description: 'Double-wall vacuum insulated bottle to keep drinks cold through back-to-back lectures.', manufacturer: 'HydraCo', use_cases: ['commute', 'gym', 'study', 'dorm'], category: 'electronics', price: 28.00, discounted_price: 22.00, average_rating: 4.3, review_count: 10, rating_distribution: [0,1,2,3,4] },
+            { product_ID: 'MOCK-CHARGER-1', name: 'Portable Charger', description: '10,000 mAh slim bank.', long_description: 'USB-C fast charge pack to keep your phone and earbuds alive during long campus days.', manufacturer: 'ChargeUp', use_cases: ['commute', 'travel', 'study', 'gaming'], category: 'electronics', price: 39.00, discounted_price: 32.00, average_rating: 4.4, review_count: 10, rating_distribution: [0,1,2,3,4] },
+            { product_ID: 'MOCK-LAMP-1', name: 'Desk Lamp', description: 'LED study lamp.', long_description: 'Adjustable arm with warm and cool light modes plus a USB port for late-night sessions.', manufacturer: 'BrightDesk', use_cases: ['study', 'dorm', 'work'], category: 'electronics', price: 34.00, discounted_price: 29.00, average_rating: 4.2, review_count: 10, rating_distribution: [0,1,2,3,4] },
+            { product_ID: 'MOCK-HOODIE-1', name: 'Campus Hoodie', description: 'Soft fleece hoodie.', long_description: 'Midweight fleece with a roomy hood and front pocket, ideal for chilly lecture halls.', manufacturer: 'Campus Threads', use_cases: ['commute', 'study', 'casual days'], category: 'apparel', price: 42.00, discounted_price: 36.00, average_rating: 4.5, review_count: 10, rating_distribution: [0,0,2,3,5] },
+            { product_ID: 'MOCK-TOTE-1', name: 'Canvas Tote', description: 'Everyday carry tote.', long_description: 'Thick canvas with an inner laptop sleeve and key clip for quick class hops.', manufacturer: 'Northline', use_cases: ['commute', 'study', 'gym'], category: 'bags', price: 35.00, discounted_price: 30.00, average_rating: 4.3, review_count: 10, rating_distribution: [0,1,2,3,4] },
+            { product_ID: 'MOCK-SPEAKER-1', name: 'Mini Bluetooth Speaker', description: 'Pocket-sized speaker.', long_description: 'Splash-resistant mini speaker with 10-hour battery for dorm hangs and picnics.', manufacturer: 'SoundLab', use_cases: ['dorm', 'travel', 'casual hangouts'], category: 'electronics', price: 45.00, discounted_price: 38.00, average_rating: 4.1, review_count: 10, rating_distribution: [0,1,3,3,3] },
+            { product_ID: 'MOCK-PLANNER-1', name: 'Weekly Planner', description: 'Notebook planner.', long_description: 'Undated weekly planner with task blocks and habit trackers to stay on top of classes.', manufacturer: 'Paperly', use_cases: ['study', 'work', 'dorm'], category: 'apparel', price: 16.00, discounted_price: 14.00, average_rating: 3.3, review_count: 10, rating_distribution: [1,2,3,3,1] },
+            { product_ID: 'MOCK-HANGER-1', name: 'Slim Hangers (20-pack)', description: 'Space-saving velvet hangers.', long_description: 'Slim velvet hangers keep clothes from slipping and open up precious dorm closet space.', manufacturer: 'DormCo', use_cases: ['dorm', 'casual days', 'presentations'], category: 'apparel', price: 22.00, discounted_price: 18.00, average_rating: 4.2, review_count: 10, rating_distribution: [0,1,2,3,4] },
+            { product_ID: 'MOCK-STRIP-1', name: 'Surge Protector Power Strip', description: '6 outlets + 3 USB.', long_description: 'Flat-plug surge protector with a 6ft cord, 6 AC outlets, and 3 USB ports for laptops, lamps, and phones.', manufacturer: 'ChargeUp', use_cases: ['dorm', 'study', 'work'], category: 'electronics', price: 27.00, discounted_price: 23.00, average_rating: 4.4, review_count: 10, rating_distribution: [0,1,2,3,4] },
+            { product_ID: 'MOCK-LIGHT-CLIP', name: 'Clip-On Study Lamp', description: 'Adjustable clip lamp.', long_description: 'LED clip-on lamp with gooseneck arm and three brightness levels for shared rooms or bunk beds.', manufacturer: 'BrightDesk', use_cases: ['study', 'dorm', 'late nights'], category: 'electronics', price: 19.00, discounted_price: 16.00, average_rating: 4.2, review_count: 10, rating_distribution: [0,1,2,3,4] },
+            { product_ID: 'MOCK-BINS-1', name: 'Foldable Storage Bins (2-pack)', description: 'Fabric storage cubes.', long_description: 'Collapsible fabric bins with handles to stash snacks, notebooks, or laundry supplies under a bed.', manufacturer: 'DormCo', use_cases: ['dorm', 'organization', 'study'], category: 'bags', price: 24.00, discounted_price: 20.00, average_rating: 4.1, review_count: 10, rating_distribution: [0,1,3,3,3] }
         ];
 
         async function loadProducts() {
@@ -89,6 +162,7 @@
             const container = document.getElementById('products');
             statusEl.textContent = 'Loading products...';
             container.innerHTML = '';
+            const allowedCategories = ['shoes', 'bags', 'electronics', 'apparel'];
 
             try {
                 let url = '/product-catalog/search?';
@@ -96,24 +170,25 @@
                     url += 'key=' + encodeURIComponent(search);
                 }
                 const res = await fetch(url);
-                if (!res.ok) {
-                    statusEl.textContent = 'Showing products.';
-                    renderProducts(filterList(mockProducts, search, categoryFilter, { minPriceVal, maxPriceVal, minRatingVal, sortBy }));
+                let results = [];
+                if (res.ok) {
+                    const data = await res.json();
+                    results = data.results || [];
+                    results = results.filter(p => allowedCategories.includes((p.category || '').toLowerCase()));
+                    results = filterList(results, search, categoryFilter, { minPriceVal, maxPriceVal, minRatingVal, sortBy });
+                }
+                const mockFiltered = filterList(mockProducts, search, categoryFilter, { minPriceVal, maxPriceVal, minRatingVal, sortBy });
+                const merged = mergeUniqueById(results, mockFiltered);
+                if (!merged || merged.length === 0) {
+                    statusEl.textContent = 'No matches found.';
+                    renderProducts([], statusEl);
                     return;
                 }
-                const data = await res.json();
-                let results = data.results || [];
-                results = filterList(results, search, categoryFilter, { minPriceVal, maxPriceVal, minRatingVal, sortBy });
-                if (!results || results.length === 0) {
-                    statusEl.textContent = 'No matches found; showing mock products.';
-                    renderProducts(filterList(mockProducts, search, categoryFilter, { minPriceVal, maxPriceVal, minRatingVal, sortBy }));
-                    return;
-                }
-                statusEl.textContent = `${results.length} products`;
-                renderProducts(results);
+                statusEl.textContent = `${merged.length} products`;
+                renderProducts(merged, statusEl);
             } catch (err) {
-                statusEl.textContent = 'Showing products.';
-                renderProducts(filterList(mockProducts, search, categoryFilter, { minPriceVal, maxPriceVal, minRatingVal, sortBy }));
+                statusEl.textContent = '';
+                renderProducts(filterList(mockProducts, search, categoryFilter, { minPriceVal, maxPriceVal, minRatingVal, sortBy }), statusEl);
                 console.error(err);
             }
         }
@@ -121,55 +196,85 @@
         function filterList(list, keyword, categoryFilter, { minPriceVal, maxPriceVal, minRatingVal, sortBy }) {
             const k = (keyword || "").toLowerCase();
             return list.filter(p => {
-                const matchesText = !k || (p.name || '').toLowerCase().includes(k) ||
-                    (p.description || '').toLowerCase().includes(k) ||
-                    (p.category || '').toLowerCase().includes(k);
+                const matchesText = !k || (p.name || '').toLowerCase().includes(k);
                 const matchesCat = !categoryFilter || (p.category || '').toLowerCase() === categoryFilter.toLowerCase();
                 const priceVal = p.discounted_price ?? p.price ?? 0;
                 const matchesMinPrice = !minPriceVal || priceVal >= minPriceVal;
                 const matchesMaxPrice = !maxPriceVal || priceVal <= maxPriceVal;
-                const ratingVal = p.average_rating ?? 0;
-                const matchesRating = !minRatingVal || ratingVal >= minRatingVal;
+                const ratingVal = (typeof p.average_rating === 'number') ? p.average_rating : parseFloat(p.average_rating);
+                const matchesRating = !minRatingVal || (ratingVal && ratingVal >= minRatingVal);
                 return matchesText && matchesCat && matchesMinPrice && matchesMaxPrice && matchesRating;
             }).sort((a, b) => sortProducts(a, b, sortBy));
+        }
+
+        function mergeUniqueById(primary, secondary) {
+            const map = new Map();
+            (primary || []).forEach(p => {
+                if (p && p.product_ID) map.set(p.product_ID, p);
+            });
+            (secondary || []).forEach(p => {
+                if (p && p.product_ID && !map.has(p.product_ID)) {
+                    map.set(p.product_ID, p);
+                }
+            });
+            return Array.from(map.values());
         }
 
         function clearSearch() {
             document.getElementById('searchInput').value = '';
             document.getElementById('minPrice').value = '';
             document.getElementById('maxPrice').value = '';
-            document.getElementById('minRating').value = '';
+            document.getElementById('minRating').value = 1;
+            updateRatingLabel();
+            document.getElementById('filterCategory').value = '';
             document.getElementById('sortBy').value = '';
             loadProducts();
         }
 
-        function renderProducts(products) {
+        function renderProducts(products, statusEl) {
             const container = document.getElementById('products');
             container.innerHTML = '';
             if (!products || products.length === 0) {
-                container.innerHTML = '<p class="muted">No products found.</p>';
+                container.innerHTML = '<p class="muted">No matches found.</p>';
+                if (statusEl) statusEl.textContent = '';
                 return;
             }
             products.forEach(p => {
-                const desc = p.long_description || p.description || 'No description.';
-                const snippet = desc.length > 80 ? desc.substring(0, 80) + '...' : desc;
+                const desc = cleanText(p.long_description || p.description || 'No description.');
+                const snippet = desc.length > 140 ? desc.substring(0, 140) + '...' : desc;
                 const card = document.createElement('div');
                 card.className = 'card';
+                const basePrice = p.price ?? 0;
+                const salePrice = p.discounted_price ?? p.price ?? 0;
+                const hasDiscount = p.discounted_price && p.discounted_price !== p.price;
+                const percentOff = hasDiscount ? Math.round((1 - (salePrice / basePrice)) * 100) : null;
+                const reviewCount = typeof p.review_count === 'number'
+                    ? p.review_count
+                    : (Array.isArray(p.rating_distribution) ? p.rating_distribution.reduce((a, b) => a + b, 0) : 0);
                 card.innerHTML = `
                     <h3>${p.name || 'Unnamed Product'}</h3>
                     <div class="muted">${formatCategory(p.category)}</div>
-                    <div class="stars">${renderStars(p.average_rating)} <span class="muted" style="color:#4b5563;">${p.average_rating ? p.average_rating.toFixed(1) : 'N/A'}</span></div>
-                    <div class="price">$${(p.discounted_price ?? p.price ?? 0).toFixed(2)}</div>
-                    ${p.discounted_price && p.discounted_price !== p.price ? `<div class="muted">Was $${(p.price ?? 0).toFixed(2)}</div>` : ''}
+                    <div class="stars">
+                        ${renderStars(p.average_rating)} <span class="muted" style="color:#4b5563;">${p.average_rating ? p.average_rating.toFixed(1) : 'N/A'}</span>
+                        <span class="muted" data-review-btn="${p.product_ID}" style="margin-left:8px; cursor:pointer; text-decoration:underline; color:#2563eb;">${reviewCount || 'No'} reviews</span>
+                    </div>
+                    <div class="price">$${salePrice.toFixed(2)}</div>
+                    ${hasDiscount ? `<div class="muted">Usually is $${basePrice.toFixed(2)} (${percentOff}% off)</div>` : ''}
                     <p class="muted" style="min-height:40px;">${snippet}</p>
+                    <div class="muted" data-review-box="${p.product_ID}" style="display:none;"></div>
                     <div class="controls">
                         <input type="number" min="1" value="1" style="width:70px;" aria-label="Quantity" />
                         <button type="button" data-product="${p.product_ID}">Add to cart</button>
+                        <button type="button" data-product="${p.product_ID}" data-action="buy-now" style="background:#065f46;">Buy now</button>
                     </div>
                 `;
                 const qtyInput = card.querySelector('input[type="number"]');
                 const btn = card.querySelector('button');
+                const buyBtn = card.querySelector('button[data-action="buy-now"]');
+                const reviewBtn = card.querySelector(`[data-review-btn="${p.product_ID}"]`);
                 btn.addEventListener('click', () => addToCart(p, parseInt(qtyInput.value, 10) || 1));
+                buyBtn.addEventListener('click', () => buyNow(p, parseInt(qtyInput.value, 10) || 1));
+                reviewBtn.addEventListener('click', () => toggleReviews(p.product_ID, card));
                 card.addEventListener('click', async (e) => {
                     if (e.target.tagName.toLowerCase() === 'button' || e.target.tagName.toLowerCase() === 'input') return;
                     await showDetails(p, card);
@@ -191,9 +296,29 @@
             return cat.charAt(0).toUpperCase() + cat.slice(1);
         }
 
+        function cleanText(text) {
+            if (!text) return '';
+            return text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+        }
+
         function toNumber(val) {
             const n = parseFloat(val);
             return isNaN(n) ? null : n;
+        }
+
+        function updateRatingLabel(fromInput) {
+            const slider = document.getElementById('minRating');
+            const input = document.getElementById('minRatingValue');
+            if (fromInput) {
+                let val = parseFloat(input.value);
+                if (isNaN(val)) val = 1;
+                val = Math.min(5, Math.max(1, val));
+                input.value = val.toFixed(1);
+                slider.value = val.toFixed(1);
+            } else {
+                const val = parseFloat(slider.value);
+                input.value = val.toFixed(1);
+            }
         }
 
         function sortProducts(a, b, sortBy) {
@@ -232,30 +357,30 @@
                     throw new Error('Could not load details');
                 }
                 const data = await res.json();
-                const description = data.description || product.long_description || product.description || 'No description.';
+                const description = cleanText(data.description || product.long_description || product.description || 'No description.');
                 const maker = product.manufacturer || 'Generic Co.';
                 const uses = product.use_cases || ['Study time', 'Gym', 'Commute'];
-                const price = data.discounted_price ?? data.price ?? 0;
                 detail.innerHTML = `
+                    <div class="muted">Product ID: ${product.product_ID}</div>
                     <div class="muted">Manufacturer: ${maker}</div>
-                    <div class="price">$${price.toFixed(2)}</div>
-                    <div>${description}</div>
+                    <div class="muted" style="font-size:13px; line-height:1.4;">${description}</div>
                     <div class="muted" style="margin-top:6px;">Use cases:</div>
-                    <ul class="muted" style="padding-left:16px; margin-top:4px;">
-                        ${uses.map(u => `<li>${u}</li>`).join('')}
-                    </ul>
+                    <div class="muted" style="display:flex; gap:6px; flex-wrap:wrap; margin-top:4px;">
+                        ${uses.map(u => `<span class="pill">${u}</span>`).join('')}
+                    </div>
                 `;
             } catch (err) {
-                const description = product.long_description || product.description || 'No description.';
+                const description = cleanText(product.long_description || product.description || 'No description.');
                 const maker = product.manufacturer || 'Generic Co.';
                 const uses = product.use_cases || ['Study time', 'Gym', 'Commute'];
                 detail.innerHTML = `
+                    <div class="muted">Product ID: ${product.product_ID}</div>
                     <div class="muted">Manufacturer: ${maker}</div>
-                    <div>${description}</div>
+                    <div class="muted" style="font-size:13px; line-height:1.4;">${description}</div>
                     <div class="muted" style="margin-top:6px;">Use cases:</div>
-                    <ul class="muted" style="padding-left:16px; margin-top:4px;">
-                        ${uses.map(u => `<li>${u}</li>`).join('')}
-                    </ul>
+                    <div class="muted" style="display:flex; gap:6px; flex-wrap:wrap; margin-top:4px;">
+                        ${uses.map(u => `<span class="pill">${u}</span>`).join('')}
+                    </div>
                 `;
             }
         }
@@ -293,6 +418,98 @@
             }
         }
 
+        async function addBundle(productIds) {
+            const statusEl = document.getElementById('cart-status');
+            for (const id of productIds) {
+                const prod = mockProducts.find(p => p.product_ID === id);
+                if (!prod) continue;
+                await addToCart(prod, 1);
+            }
+            statusEl.textContent = 'Bundle added (items added individually).';
+        }
+
+        async function buyNow(product, quantity) {
+            const statusEl = document.getElementById('cart-status');
+            statusEl.textContent = 'Creating checkout...';
+            try {
+                const res = await fetch('/create-checkout-session', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        product_ID: product.product_ID,
+                        quantity,
+                        name: product.name,
+                        price: product.discounted_price ?? product.price,
+                        description: product.description
+                    })
+                });
+                if (!res.ok) {
+                    const msg = await res.text();
+                    statusEl.textContent = 'Checkout failed: ' + msg;
+                    return;
+                }
+                const data = await res.json();
+                if (data.url) {
+                    window.location = data.url;
+                } else {
+                    statusEl.textContent = 'Checkout failed: no session URL.';
+                }
+            } catch (err) {
+                statusEl.textContent = 'Checkout error.';
+                console.error(err);
+            }
+        }
+
+        async function toggleReviews(productId, card) {
+            const box = card.querySelector(`[data-review-box="${productId}"]`);
+            if (!box) return;
+            if (box.style.display === 'block') {
+                box.style.display = 'none';
+                box.innerHTML = '';
+                return;
+            }
+            box.style.display = 'block';
+            box.textContent = 'Loading...';
+            try {
+                const res = await fetch('/product-reviews/' + encodeURIComponent(productId));
+                if (!res.ok) {
+                    box.textContent = 'No reviews found.';
+                    return;
+                }
+                const data = await res.json();
+                const dist = data.rating_distribution || [];
+                const total = dist.reduce((a, b) => a + b, 0);
+                const max = Math.max(...dist, 1);
+                const wrapper = document.createElement('div');
+                wrapper.className = 'stack';
+                dist.forEach((count, idx) => {
+                    const score = idx + 1;
+                    const pct = Math.round((count / max) * 100);
+                    const bar = document.createElement('div');
+                    bar.innerHTML = `
+                        <div class="muted" style="display:flex; align-items:center; gap:8px;">
+                            <span style="width:40px;">${score}★</span>
+                            <div style="background:#e5e7eb; flex:1; height:10px; border-radius:999px; overflow:hidden;">
+                                <div style="width:${pct}%; height:10px; background:#2563eb;"></div>
+                            </div>
+                            <span>${count}</span>
+                        </div>
+                    `;
+                    wrapper.appendChild(bar);
+                });
+                const summary = document.createElement('div');
+                summary.className = 'muted';
+                summary.textContent = `Total reviews: ${total}`;
+                box.innerHTML = '';
+                box.appendChild(wrapper);
+                box.appendChild(summary);
+                const btn = card.querySelector(`[data-review-btn="${productId}"]`);
+                if (btn) btn.textContent = `${total || 'No'} reviews`;
+            } catch (err) {
+                box.textContent = 'Error loading reviews.';
+            }
+        }
+
         async function loadCart() {
             const cartEl = document.getElementById('cart-items');
             const totalEl = document.getElementById('cart-total');
@@ -311,27 +528,35 @@
                     return;
                 }
                 const data = await res.json();
-                if (data.items) {
+                if (data.items && data.items.length) {
+                    const grouped = groupByCategory(data.items);
                     const list = document.createElement('div');
                     list.className = 'stack';
-                    data.items.forEach(item => {
-                        const row = document.createElement('div');
-                        row.className = 'card cart-item';
-                        row.innerHTML = `
-                            <div>
-                                <strong>${item.name}</strong>
-                                <div class="muted">Price: $${(item.price ?? 0).toFixed(2)}</div>
-                                <div class="muted">Qty: ${item.quantity}</div>
-                            </div>
-                            <div style="text-align:right;">
-                                <div class="price">$${(item.price * item.quantity).toFixed(2)}</div>
-                                <div class="controls">
-                                    <button type="button" data-action="remove" style="background:#d14343;">Remove</button>
+                    Object.keys(grouped).forEach(cat => {
+                        const header = document.createElement('div');
+                        header.className = 'muted';
+                        header.textContent = (cat || 'Other').toUpperCase();
+                        list.appendChild(header);
+                        grouped[cat].forEach(item => {
+                            const row = document.createElement('div');
+                            row.className = 'card cart-item';
+                            row.innerHTML = `
+                                <div>
+                                    <strong>${item.name}</strong>
+                                    <div class="muted">ID: ${item.product_ID}</div>
+                                    <div class="muted">Price: $${(item.price ?? 0).toFixed(2)}</div>
+                                    <div class="muted">Qty: ${item.quantity}</div>
                                 </div>
-                            </div>
-                        `;
-                        row.querySelector('button[data-action="remove"]').onclick = () => removeCartItem(item.product_ID);
-                        list.appendChild(row);
+                                <div style="text-align:right;">
+                                    <div class="price">$${(item.price * item.quantity).toFixed(2)}</div>
+                                    <div class="controls">
+                                        <button type="button" data-action="remove" style="background:#d14343;">Remove</button>
+                                    </div>
+                                </div>
+                            `;
+                            row.querySelector('button[data-action="remove"]').onclick = () => removeCartItem(item.product_ID);
+                            list.appendChild(row);
+                        });
                     });
                     cartEl.innerHTML = '';
                     cartEl.appendChild(list);
@@ -363,9 +588,21 @@
             }
         }
 
+        function groupByCategory(items) {
+            return items.reduce((acc, item) => {
+                const cat = item.category || 'Other';
+                if (!acc[cat]) acc[cat] = [];
+                acc[cat].push(item);
+                return acc;
+            }, {});
+        }
+
         // initial load
         loadProducts();
         loadCart();
+        updateRatingLabel();
+        document.getElementById('minRating').addEventListener('input', () => updateRatingLabel(false));
+        document.getElementById('minRatingValue').addEventListener('change', () => updateRatingLabel(true));
 
         async function signOut() {
             await fetch("/logout", { method: "POST", headers: { "Content-Type": "text/html" } });

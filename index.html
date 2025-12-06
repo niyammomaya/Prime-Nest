@@ -13,10 +13,14 @@
             <a href="/store">Store</a>
             <a href="/cart.html">Cart</a>
         </nav>
-        <button id="signOutBtn" type="button" style="display:none;" onclick="signOut()">Sign out</button>
+        <div class="controls" style="margin-top:0;">
+            <a href="/dashboard"><button type="button">Dashboard</button></a>
+            <button id="signOutBtn" type="button" style="display:none;" onclick="signOut()">Sign out</button>
+        </div>
     </header>
     <main>
-        <section>
+        <section class="brand-hero">
+            <img src="assets/PrimeNestLogo.jpg" alt="PrimeNest logo" class="hero-logo">
             <h2>Welcome to PrimeNest</h2>
             <p class="tagline">Sign in to start shopping, then browse the store and manage your cart.</p>
             <div class="controls">
@@ -27,7 +31,7 @@
 
         <section style="margin-top:20px;">
             <h3>Sign in with Google</h3>
-            <p class="muted">Use the Google button below to log in.</p>
+            <p class="muted">Use the Google button below to log in. Only educational (.edu) accounts are accepted.</p>
             <div id="buttonDiv"></div>
             <div id="signedInMsg" class="muted" style="display:none; margin-top:10px;">You are signed in.</div>
             <div class="controls" style="margin-top:12px;">
@@ -48,7 +52,12 @@
             if (a.status == 200) {
                 window.location = "/store";
             } else {
-                alert("Failed to log in.");
+                const msg = await a.text();
+                if (a.status === 403) {
+                    alert("Non-valid educational account!");
+                } else {
+                    alert(msg || "Failed to log in.");
+                }
             }
         }
         window.onload = function () {

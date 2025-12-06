@@ -5,12 +5,16 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <header>
-        <nav>
+    <header style="display:flex; justify-content:space-between; align-items:center;">
+        <nav style="display:flex; gap:14px; align-items:center;">
+            <a href="/">Home</a>
             <a href="/store">Store</a>
             <a href="/cart.html">Cart</a>
-            <a href="/">Home</a>
         </nav>
+        <div class="controls" style="margin-top:0;">
+            <a href="/dashboard"><button type="button">Dashboard</button></a>
+            <button onclick="signOut()">Sign out</button>
+        </div>
     </header>
     <main>
         <section>

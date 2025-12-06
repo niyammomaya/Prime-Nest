@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>PrimeNest Dashboard</title>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header style="display:flex; justify-content:space-between; align-items:center;">
+    <nav style="display:flex; gap:14px; align-items:center;">
+      <a href="/">Home</a>
+      <a href="/store">Store</a>
+      <a href="/cart.html">Cart</a>
+    </nav>
+    <div class="controls" style="margin-top:0;">
+      <a href="/dashboard"><button type="button">Dashboard</button></a>
+      <button type="button" onclick="signOut()">Sign out</button>
+    </div>
+  </header>
+  <main>
+    <section>
+      <h2>Your Dashboard</h2>
+      <p class="tagline">Quick snapshot of your account and orders.</p>
+      <div class="stack" style="margin-bottom:16px;">
+        <div><strong>Email:</strong> <span id="user-email">Loading...</span></div>
+        <div><strong>Total orders:</strong> <span id="order-count">0</span></div>
+        <div><strong>Total spend (products):</strong> <span id="order-spend">$0.00</span></div>
+        <div><strong>Last order date:</strong> <span id="last-order">N/A</span></div>
+      </div>
+    </section>
+
+    <section style="margin-top:16px;">
+      <h3>Order History</h3>
+      <div id="orders-status" class="muted" style="margin-bottom:10px;">Loading orders...</div>
+      <div id="orders-list" class="stack"></div>
+    </section>
+  </main>
+
+  <script>
+    async function loadDashboard() {
+      const emailEl = document.getElementById('user-email');
+      const countEl = document.getElementById('order-count');
+      const spendEl = document.getElementById('order-spend');
+      const lastEl = document.getElementById('last-order');
+      const statusEl = document.getElementById('orders-status');
+      const listEl = document.getElementById('orders-list');
+
+      // fetch auth info
+      try {
+        const auth = await fetch('/auth-status');
+        if (auth.status !== 200) {
+          emailEl.textContent = 'Not logged in';
+          memberEl.textContent = 'N/A';
+          statusEl.textContent = 'Please log in to view orders.';
+          return;
+        }
+        const authData = await auth.json();
+        emailEl.textContent = authData.email || 'Unknown';
+      } catch (err) {
+        emailEl.textContent = 'Error loading email';
+      }
+
+      // fetch orders
+      try {
+        const res = await fetch('/orders');
+        if (!res.ok) {
+          statusEl.textContent = 'Could not load orders.';
+          return;
+        }
+        const data = await res.json();
+        const orders = Array.isArray(data) ? data : [];
+        if (orders.length === 0) {
+          statusEl.textContent = 'No orders yet.';
+          countEl.textContent = '0';
+          spendEl.textContent = '$0.00';
+          lastEl.textContent = 'N/A';
+          listEl.innerHTML = '';
+          return;
+        }
+        statusEl.textContent = `${orders.length} orders`;
+        countEl.textContent = orders.length;
+        const spend = orders.reduce((sum, o) => sum + (o.products_cost || o.total_cost || 0), 0);
+        spendEl.textContent = '$' + (spend || 0).toFixed(2);
+        const last = orders
+          .map(o => new Date(o.date_made))
+          .filter(d => !isNaN(d))
+          .sort((a, b) => b - a)[0];
+        lastEl.textContent = last ? last.toDateString() : 'N/A';
+
+        listEl.innerHTML = '';
+        orders.sort((a, b) => new Date(b.date_made) - new Date(a.date_made));
+        orders.forEach(o => {
+          const card = document.createElement('div');
+          card.className = 'card';
+          card.innerHTML = `
+            <div><strong>Order ID:</strong> ${o.order_ID || 'N/A'}</div>
+            <div class="muted">Date: ${o.date_made || 'N/A'}</div>
+            <div class="muted">Status: ${o.status || 'N/A'}</div>
+            <div class="muted">Total: $${(o.total_cost ?? 0).toFixed(2)}</div>
+          `;
+          listEl.appendChild(card);
+        });
+      } catch (err) {
+        statusEl.textContent = 'Error loading orders.';
+        console.error(err);
+      }
+    }
+
+    async function signOut() {
+      await fetch("/logout", { method: "POST", headers: { "Content-Type": "text/html" } });
+      document.location = "/";
+    }
+
+    loadDashboard();
+  </script>
+</body>
+</html>

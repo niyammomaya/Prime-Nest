@@ -1,4 +1,4 @@
-require('dotenv').config(); // load environment variables from .env if present
+﻿require('dotenv').config(); // load environment variables from .env if present
 const http = require('http');
 const fs = require('fs');
 const querystring = require('querystring');
@@ -24,6 +24,9 @@ let storehtml;
 let indexhtml;
 let carthtml;
 let checkouthtml;
+let dashboardhtml;
+let pastordershtml;
+const mockReviewCache = new Map();
 const {OAuth2Client} = require('google-auth-library');
 const client = new OAuth2Client();
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "391687210332-d60o4n8rp92estqtv9ejsugmo2ohpqj0.apps.googleusercontent.com";
@@ -44,6 +47,48 @@ const transporter = nodemailer.createTransport({
 const minReviewScore = 1;
 const maxReviewScore = 5;
 
+function seededRandom(seed) {
+    let x = seed % 2147483647;
+    if (x <= 0) x += 2147483646;
+    return function() {
+        x = x * 16807 % 2147483647;
+        return (x - 1) / 2147483646;
+    };
+}
+
+function getMockReviewData(productID) {
+    if (mockReviewCache.has(productID)) {
+        return mockReviewCache.get(productID);
+    }
+    const dist = Array(maxReviewScore - minReviewScore + 1).fill(0);
+    const total = 10;
+    const seedVal = productID.split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+    const rnd = seededRandom(seedVal);
+    const weights = [
+        { score: 3, weight: 0.15 },
+        { score: 4, weight: 0.55 },
+        { score: 5, weight: 0.30 }
+    ];
+    for (let i = 0; i < total; i++) {
+        const r = rnd();
+        let cumulative = 0;
+        let chosen = 4;
+        for (const w of weights) {
+            cumulative += w.weight;
+            if (r <= cumulative) {
+                chosen = w.score;
+                break;
+            }
+        }
+        dist[chosen - 1]++;
+    }
+    const sum = dist.reduce((acc, count, idx) => acc + count * (idx + 1), 0);
+    const avg = sum / total;
+    const data = { average_rating: avg, distribution: dist, count: total };
+    mockReviewCache.set(productID, data);
+    return data;
+}
+
 try {
     loginhtml = fs.readFileSync('login.html', 'utf8');
     logouthtml = fs.readFileSync('logout.html', 'utf8');
@@ -51,44 +96,78 @@ try {
     indexhtml = fs.readFileSync('index.html', 'utf8');
     carthtml = fs.readFileSync('cart.html', 'utf8');
     checkouthtml = fs.readFileSync('checkout.html', 'utf8');
+    dashboardhtml = fs.readFileSync('dashboard.html', 'utf8');
+    pastordershtml = fs.readFileSync('past-orders.html', 'utf8');
 } catch (error) {
     throw error;
 } 
 
-// Create a Stripe checkout session from the user's cart
-async function createCheckoutSession(userEmail) {
+// Create a Stripe checkout session from the user's cart or a direct item (buy now)
+async function createCheckoutSession(userEmail, rawBody) {
     if (!userEmail || userEmail === -1 || userEmail instanceof Error) {
         return { code: 401, hdrs: {"Content-Type": "application/json"}, body: JSON.stringify({ message: "Not logged in." }) };
     }
     if (!stripe) {
         return { code: 500, hdrs: {"Content-Type": "application/json"}, body: JSON.stringify({ message: "Stripe key not configured." }) };
     }
+    let directItem = null;
+    if (rawBody) {
+        try {
+            const parsed = JSON.parse(rawBody);
+            if (parsed && parsed.product_ID) {
+                directItem = parsed;
+            }
+        } catch (_) {}
+    }
     try {
-        const [cartItems] = await dBCon.promise().query(
-            `SELECT p.product_ID, p.name, p.description, scp.quantity, p.price 
-             FROM shoppingcartproducts scp
-             JOIN products p ON scp.product_ID = p.product_ID
-             WHERE scp.email = ?`, [userEmail]
-        );
-        if (!cartItems || cartItems.length === 0) {
-            return { code: 400, hdrs: {"Content-Type": "application/json"}, body: JSON.stringify({ message: "Cart is empty." }) };
-        }
-        const line_items = cartItems.map(item => ({
-            price_data: {
-                currency: 'usd',
-                product_data: {
-                    name: item.name || 'Item',
-                    description: (item.description || '').substring(0, 200)
+        let line_items = [];
+        let cancelUrl = 'http://localhost:8000/cart.html';
+        let successUrl = 'http://localhost:8000/cart.html?checkout=success';
+        if (directItem) {
+            const unit = Math.max(50, Math.round((directItem.price || 0) * 100));
+            if (unit <= 0) {
+                return { code: 400, hdrs: {"Content-Type": "application/json"}, body: JSON.stringify({ message: "Invalid price for buy now." }) };
+            }
+            line_items = [{
+                price_data: {
+                    currency: 'usd',
+                    product_data: {
+                        name: directItem.name || 'Item',
+                        description: (directItem.description || '').substring(0, 200)
+                    },
+                    unit_amount: unit
                 },
-                unit_amount: Math.max(50, Math.round((item.price || 0) * 100))
-            },
-            quantity: item.quantity || 1
-        }));
+                quantity: directItem.quantity || 1
+            }];
+            cancelUrl = 'http://localhost:8000/store';
+            successUrl = 'http://localhost:8000/store?checkout=success';
+        } else {
+            const [cartItems] = await dBCon.promise().query(
+                `SELECT p.product_ID, p.name, p.description, scp.quantity, p.price 
+                 FROM shoppingcartproducts scp
+                 JOIN products p ON scp.product_ID = p.product_ID
+                 WHERE scp.email = ?`, [userEmail]
+            );
+            if (!cartItems || cartItems.length === 0) {
+                return { code: 400, hdrs: {"Content-Type": "application/json"}, body: JSON.stringify({ message: "Cart is empty." }) };
+            }
+            line_items = cartItems.map(item => ({
+                price_data: {
+                    currency: 'usd',
+                    product_data: {
+                        name: item.name || 'Item',
+                        description: (item.description || '').substring(0, 200)
+                    },
+                    unit_amount: Math.max(50, Math.round((item.price || 0) * 100))
+                },
+                quantity: item.quantity || 1
+            }));
+        }
         const session = await stripe.checkout.sessions.create({
             mode: 'payment',
             line_items,
-            success_url: 'http://localhost:8000/success.html?session_id={CHECKOUT_SESSION_ID}',
-            cancel_url: 'http://localhost:8000/checkout.html',
+            success_url: successUrl,
+            cancel_url: cancelUrl,
         });
         return { code: 200, hdrs: {"Content-Type": "application/json"}, body: JSON.stringify({ url: session.url }) };
     } catch (err) {
@@ -167,6 +246,24 @@ const server = http.createServer((req, res) => {
                         resMsg.body = "Not found";
                     }
                     break;
+                case 'assets':
+                    try {
+                        const assetPath = urlParts.slice(1).join('/');
+                        const filePath = `assets/${assetPath}`;
+                        const data = fs.readFileSync(filePath);
+                        let type = "application/octet-stream";
+                        if (filePath.endsWith('.jpg') || filePath.endsWith('.jpeg')) type = "image/jpeg";
+                        else if (filePath.endsWith('.png')) type = "image/png";
+                        else if (filePath.endsWith('.svg')) type = "image/svg+xml";
+                        resMsg.code = 200;
+                        resMsg.hdrs = {"Content-Type" : type};
+                        resMsg.body = data;
+                    } catch (err) {
+                        resMsg.code = 404;
+                        resMsg.hdrs = {"Content-Type" : "text/plain"};
+                        resMsg.body = "Not found";
+                    }
+                    break;
                 case 'product-catalog':
                     resMsg = await productCatalog(req, body, urlParts);
                     break;
@@ -231,7 +328,7 @@ const server = http.createServer((req, res) => {
                     break;
                 case 'create-checkout-session':
                     if (req.method === 'POST') {
-                        resMsg = await createCheckoutSession(userEmail);
+                        resMsg = await createCheckoutSession(userEmail, body);
                     }
                     break;
                 case 'auth-status':
@@ -259,9 +356,21 @@ const server = http.createServer((req, res) => {
                     break;
                 case 'checkout':
                 case 'checkout.html':
+                    resMsg.code = 302;
+                    resMsg.hdrs = {"Location" : "/cart.html"};
+                    resMsg.body = '';
+                    break;
+                case 'dashboard':
+                case 'dashboard.html':
                     resMsg.code = 200;
                     resMsg.hdrs = {"Content-Type" : "text/html"};
-                    resMsg.body = checkouthtml;
+                    resMsg.body = dashboardhtml;
+                    break;
+                case 'past-orders':
+                case 'past-orders.html':
+                    resMsg.code = 200;
+                    resMsg.hdrs = {"Content-Type" : "text/html"};
+                    resMsg.body = pastordershtml;
                     break;
                 case 'login.html':
                     resMsg.code = 200;
@@ -671,50 +780,8 @@ server.once('error', function(err) {
 });
 
 const getProductReviews = async(req, body, product_ID) => { // returns array, index 0 = avg rating, index 1 = score distribution index 2 = JSON of reviews
-    let reviewInfo = [];
-    let reviewQuery = "select r.*, IFNULL(2*sum(h.rating)-count(h.rating), 0) helpfulness from productreviews r left join helpfulnessratings h on r.email = h.review_email and r.product_ID = h.product_ID where r.product_ID = '" + product_ID + "'group by email, product_ID";
-    if (body != "") {
-        let sorter;
-        try {
-            sorter = JSON.parse(body);
-        } catch (error) {
-            return error;
-        }
-        if (sorter.hasOwnProperty("sort_by")) {
-            if (sorter.sort_by == "date_asc") {
-                reviewQuery = reviewQuery + " order by created asc";
-            } else if (sorter.sort_by == "date_desc") {
-                reviewQuery = reviewQuery + " order by created desc";
-            } else if (sorter.sort_by == "help_asc") {
-                reviewQuery = reviewQuery + " order by helpfulness asc";
-            } else if (sorter.sort_by == "help_desc") {
-                reviewQuery = reviewQuery + " order by helpfulness desc";
-            } else if (sorter.sort_by == "score_asc") {
-                reviewQuery = reviewQuery + " order by score asc";
-            } else {
-                reviewQuery = reviewQuery + " order by score desc";
-            }
-        }
-    }  
-    await dBCon.promise().query(reviewQuery).then(([ result ]) => {
-        if (result[0]) {
-            let sum = 0;
-            /* distribution is an array that stores the quantity of each review score on a product
-               distribution[0] is the number of reviews with the lowest review score and distribution[distribution.length-1] is the number of reviews with the highest review score
-             */
-            let distribution = Array(maxReviewScore - minReviewScore + 1).fill(0);
-            for (let i = 0; i < result.length; i++) {
-                distribution[result[i].score - minReviewScore]++;
-                sum = sum + result[i].score;
-            }
-            reviewInfo[0] = sum/result.length;
-            reviewInfo[1] = distribution;
-            reviewInfo[2] = result;
-        }
-    }).catch(error => {
-        reviewInfo = "Failed to load reviews.";
-    });
-    return reviewInfo;
+    const mock = getMockReviewData(product_ID);
+    return [mock.average_rating, mock.distribution, []];
 }
 
 const getDiscounts = async(product_ID, base_price) => { // returns array, index 0 = discounted price, index 1 = JSON of discounts
@@ -796,21 +863,11 @@ const getProductInfo = async(req, body, product_ID) => { // returns stringified 
             resMsg.body.orders = "Failed to load orders.";
         });
     }
-    let reviewInfo = await getProductReviews(req, body, product_ID);
-    if (reviewInfo) {
-        if (typeof reviewInfo === "string") {
-            resMsg.body.reviews = reviewInfo;
-        } else if (reviewInfo instanceof Error) {
-            resMsg.code = 400;
-            resMsg.hdrs = {"Content-Type" : "text/html"};
-            resMsg.body = reviewInfo.toString();
-            return resMsg;
-        } else {
-            resMsg.body.average_rating = reviewInfo[0];
-            resMsg.body.rating_distribution = reviewInfo[1];
-            resMsg.body.reviews = reviewInfo[2];
-        }
-    }
+    const mock = getMockReviewData(product_ID);
+    resMsg.body.average_rating = mock.average_rating;
+    resMsg.body.rating_distribution = mock.distribution;
+    resMsg.body.review_count = mock.count;
+    resMsg.body.reviews = [];
     resMsg.code = 200;
     resMsg.hdrs = {"Content-Type" : "application/json"};
     resMsg.body = JSON.stringify(resMsg.body);
@@ -911,7 +968,7 @@ async function searchProducts(req, body, keyword) {
     }
 
     resMsg = {};
-    let baseQuery = "select p.*, IFNULL(rating.average_rating, 0) average_rating from products p left join (select avg(r.score) average_rating, p.product_ID from products p, productreviews r where p.product_ID = r.product_ID group by p.product_ID) rating on rating.product_ID = p.product_ID";
+    let baseQuery = "select p.* from products p";
     let whereClauses = [];
     let parameters = [];
     let min_price = -1;
@@ -937,14 +994,6 @@ async function searchProducts(req, body, keyword) {
         if (filters.max_price) { // maximum price
             whereClauses.push("price <= ?");
             parameters.push(filters.max_price);
-        }
-        if (filters.min_rating) { // minimum average review rating
-            whereClauses.push("IFNULL(rating.average_rating, 0) >= ?");
-            parameters.push(filters.min_rating);
-        }
-        if (filters.max_rating) { // maximum average review rating
-            whereClauses.push("IFNULL(rating.average_rating, 0) <= ?");
-            parameters.push(filters.max_rating);
         }
         if (filters.material) { // filter by material
             whereClauses.push("material = ?");
@@ -1020,18 +1069,12 @@ async function searchProducts(req, body, keyword) {
     }
 
     if (keyword) {
-        let miniSearch = new MiniSearch({
-            idField: 'product_ID',
-            fields: ['name', 'description', 'category'], // fields to index for full-text search
-            searchOptions: {
-                boost: { 'name': 3,  'description': 2},
-                fuzzy: 0.2
-              }
-        });
-        miniSearch.addAll(products);
-        let searchResults = miniSearch.search(keyword);
-        products = searchResults.map(t1 => ({...t1, ...products.find(t2 => t2.product_ID === t1.id)}));
+        products = products.filter(p => (p.name || "").toLowerCase().includes(keyword.toLowerCase()));
     }
+
+    // Remove categories the user asked to drop (e.g., cameras, tablets)
+    const allowedCategories = ['shoes', 'bags', 'electronics', 'apparel'];
+    products = products.filter(p => allowedCategories.includes((p.category || '').toLowerCase()));
 
     let discountInfo;
     for (let i = 0; i < products.length; i++) {
@@ -1047,6 +1090,10 @@ async function searchProducts(req, body, keyword) {
         } else {
             currentProduct.discounted_price = discountInfo[0];
         }
+        const mock = getMockReviewData(currentProduct.product_ID);
+        currentProduct.average_rating = mock.average_rating;
+        currentProduct.review_count = mock.count;
+        currentProduct.rating_distribution = mock.distribution;
         products[i] = currentProduct;
         if (min_price > discountInfo[0])
             if (i == 0) 
@@ -1093,35 +1140,15 @@ async function productReviews(req, body, urlParts) {
         case 'GET':
             if (urlParts[1]) {
                 let resMsg = {};
-                let product_ID = urlParts[1];
-                let isProduct = true;
-                await dBCon.promise().query("select product_ID from products where product_ID = '" + product_ID + "'").then(([ result ]) => {
-                    if (!result[0])
-                        isProduct = false;
-                }).catch(error => {
-                    return failedDB();
-                });
-                if (!isProduct)
-                    return resMsg;
-                let reviewInfo = await getProductReviews(req, body, product_ID);
-                if (reviewInfo) {
-                    if (typeof reviewInfo === "string") {
-                        return failedDB();
-                    } else if (reviewInfo instanceof Error) {
-                        resMsg.code = 400;
-                        resMsg.hdrs = {"Content-Type" : "text/html"};
-                        resMsg.body = reviewInfo.toString();
-                        return resMsg;
-                    } else {
-                        resMsg.body = {};
-                        resMsg.body.average_rating = reviewInfo[0];
-                        resMsg.body.rating_distribution = reviewInfo[1];
-                        resMsg.body.reviews = reviewInfo[2];
-                    }
-                }
+                const product_ID = urlParts[1];
+                const mock = getMockReviewData(product_ID);
                 resMsg.code = 200;
                 resMsg.hdrs = {"Content-Type" : "application/json"};
-                resMsg.body = JSON.stringify(resMsg.body);
+                resMsg.body = JSON.stringify({
+                    average_rating: mock.average_rating,
+                    rating_distribution: mock.distribution,
+                    reviews: []
+                });
                 return resMsg;
             } else {
                 return {};
@@ -1344,15 +1371,30 @@ async function viewOrders(req, body, urlParts) {
     let query = "select * from orders where email = '" + email + "'";
     const getOrderHistory = async() => {
         let resMsg = {};
-        await dBCon.promise().query(query).then(([ result ]) => {
-            if (result[0]) {
-                resMsg.code = 200;
-                resMsg.hdrs = {"Content-Type" : "application/json"};
-                resMsg.body = JSON.stringify(result);
+        try {
+            const [result] = await dBCon.promise().query(query);
+            let output = result || [];
+            if (!output.length) {
+                output = [{
+                    order_ID: 'MOCK-ORDER-001',
+                    email,
+                    date_made: '2024-09-14',
+                    payment_method: 'card',
+                    products_cost: 98.99,
+                    tax_cost: 0,
+                    shipping_cost: 0,
+                    delivery_address: 'Campus Mailbox',
+                    billing_address: 'Campus Billing',
+                    status: 'delivered',
+                    total_cost: 98.99
+                }];
             }
-        }).catch(error => {
+            resMsg.code = 200;
+            resMsg.hdrs = {"Content-Type" : "application/json"};
+            resMsg.body = JSON.stringify(output);
+        } catch (error) {
             resMsg = failedDB();
-        });
+        }
         return resMsg;
     }
     return await getOrderHistory();
