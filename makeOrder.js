@@ -29,10 +29,10 @@ to run makeOrder from postman:
 //const http = require('http'); // for using stripe later....
 //const api_key= 'YOUR_API_KEY_HERE';
 //const stripe = require('stripe')(api_key);
-const { addressValidation_controller } = require('../src/validateAddresses.js');
+const { addressValidation_controller } = require('./validateAddress.js'); // local address validation helper
 //const url = require('url');
 //const fs = require('fs');
-const { stripeServer } = require('../stripeServer.js');
+const { stripeServer } = require('./stripeServer.js'); // local stripe checkout helper
 //const { sendEmail } = require('./send_email.js'); // for implementing email recipts - TODO
 
 async function createOrder(req, body, orderInfoArray, discounted_price) {

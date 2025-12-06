@@ -1,20 +1,109 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <title>PrimeNest CheckOut</title>
-    <link rel="stylesheet" href="style.css">
-    <script src="https://js.stripe.com/v3/"></script>
-  </head>
-  <body>
+<head>
+  <title>PrimeNest Checkout</title>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header style="display:flex; justify-content:space-between; align-items:center;">
+    <nav style="display:flex; gap:14px; align-items:center;">
+      <a href="/">Home</a>
+      <a href="/store">Store</a>
+      <a href="/cart.html">Cart</a>
+      <a href="/checkout.html">Checkout</a>
+    </nav>
+    <div class="controls" style="margin-top:0;">
+      <button type="button" onclick="signOut()">Sign out</button>
+    </div>
+  </header>
+  <main>
     <section>
-      <div>
-          <h3></h3>
-          <h5></h5>
-        </div>
+      <h2>Checkout</h2>
+      <p class="tagline">Review your cart and proceed.</p>
+      <div id="checkout-status" class="muted" style="margin-bottom:10px;">Loading cart...</div>
+      <div id="checkout-items" class="stack"></div>
+      <div id="checkout-total" class="cart-total"></div>
+      <div class="controls" style="margin-top:12px;">
+        <button type="button" onclick="startCheckout()">Place Order</button>
       </div>
-      <form action="/create-checkout-session" method="POST">
-        <button type="submit" id="checkout-button">Checkout</button>
-      </form>
     </section>
-  </body>
+  </main>
+  <script>
+    async function loadCheckout() {
+      const itemsEl = document.getElementById('checkout-items');
+      const totalEl = document.getElementById('checkout-total');
+      const statusEl = document.getElementById('checkout-status');
+      itemsEl.innerHTML = '';
+      totalEl.textContent = '';
+      statusEl.textContent = 'Loading cart...';
+      try {
+        const res = await fetch('/shopping-cart');
+        if (res.status === 401) {
+          statusEl.textContent = 'Please log in to view your cart.';
+          return;
+        }
+        if (!res.ok) {
+          statusEl.textContent = 'Could not load cart.';
+          return;
+        }
+        const data = await res.json();
+        if (data.items && data.items.length > 0) {
+          const list = document.createElement('div');
+          list.className = 'stack';
+          data.items.forEach(item => {
+            const row = document.createElement('div');
+            row.className = 'card cart-item';
+            row.innerHTML = `
+              <div>
+                <strong>${item.name}</strong>
+                <div class="muted">Price: $${(item.price ?? 0).toFixed(2)}</div>
+                <div class="muted">Qty: ${item.quantity}</div>
+              </div>
+              <div class="price">$${(item.price * item.quantity).toFixed(2)}</div>
+            `;
+            list.appendChild(row);
+          });
+          itemsEl.appendChild(list);
+          totalEl.textContent = 'Total: $' + (data.totalCost || 0).toFixed(2);
+          statusEl.textContent = 'Ready to checkout.';
+        } else {
+          statusEl.textContent = 'Your cart is empty.';
+        }
+      } catch (err) {
+        statusEl.textContent = 'Error loading cart.';
+        console.error(err);
+      }
+    }
+
+    async function startCheckout() {
+      const statusEl = document.getElementById('checkout-status');
+      statusEl.textContent = 'Creating checkout session...';
+      try {
+        const res = await fetch('/create-checkout-session', { method: 'POST' });
+        if (!res.ok) {
+          const msg = await res.text();
+          statusEl.textContent = 'Checkout failed: ' + msg;
+          return;
+        }
+        const data = await res.json();
+        if (data.url) {
+          window.location = data.url;
+        } else {
+          statusEl.textContent = 'Checkout failed: no session URL.';
+        }
+      } catch (err) {
+        statusEl.textContent = 'Checkout error.';
+        console.error(err);
+      }
+    }
+
+    async function signOut() {
+      await fetch("/logout", { method: "POST", headers: { "Content-Type": "text/html" } });
+      document.location = "/";
+    }
+
+    loadCheckout();
+  </script>
+</body>
 </html>

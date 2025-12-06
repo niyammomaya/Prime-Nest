@@ -1,6 +1,10 @@
 {
+  "scripts": {
+    "dev": "node server.js"
+  },
   "dependencies": {
-    "bcrypt": "^5.1.1",
+    "bcryptjs": "^3.0.3",
+    "dotenv": "^16.6.1",
     "email-validator": "^2.0.4",
     "es6-promise": "^4.2.8",
     "fs": "^0.0.1-security",

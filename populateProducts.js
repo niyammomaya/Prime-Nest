@@ -57,5 +57,4 @@ async function loadProducts(productType) {
         }).catch(error => {
             console.log(error);
         });
-    }   
-}
+    }  

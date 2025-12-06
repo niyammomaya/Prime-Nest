@@ -1,18 +1,32 @@
 // This file runs the stripe hosted checkout, and directs users to appropriate html pages
+require('dotenv').config(); // load env from .env if present
 const http = require('http');
 const url = require('url');
 const fs = require('fs');
-const stripe = require('stripe')('YOUR_API_KEY_HERE');
-let body = {};
 const nodemailer = require('nodemailer');
+
+// Prefer env var for security; gracefully handle missing key so the app doesn't crash.
+const stripeApiKey = process.env.STRIPE_SECRET_KEY || process.env.STRIPE_API_KEY;
+const stripe = stripeApiKey ? require('stripe')(stripeApiKey) : null;
+let body = {};
 const YOUR_DOMAIN = 'http://localhost:8001';
 
-async function stripeServer(order, cart) {
+let checkoutServer;
 
-  const server = http.createServer((req, res) => {
+async function stripeServer(order, cart) {
+  if (checkoutServer) {
+    return order; // server already running
+  }
+
+  checkoutServer = http.createServer((req, res) => {
   const { pathname } = url.parse(req.url, true);
 
     if (pathname === '/create-checkout-session' && req.method === 'POST') {
+      if (!stripe) {
+        res.writeHead(500, { 'Content-Type': 'text/plain' });
+        res.end('Stripe API key not configured');
+        return;
+      }
       stripe.checkout.sessions.create({
           shipping_address_collection: {
               allowed_countries: ['US'],
@@ -110,9 +124,11 @@ async function stripeServer(order, cart) {
   });
 
   const PORT = 8001;
-  server.listen(PORT, () => {
+  checkoutServer.listen(PORT, () => {
     console.log(`Checkout server running at http://localhost:${PORT}`);
   });
+
+  return order;
 }
 
 

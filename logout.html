@@ -1,17 +1,35 @@
+<!DOCTYPE html>
 <html>
+<head>
+    <title>PrimeNest Logout</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
     <header>
-        <a href="#" onclick="signOut();">Sign out</a>
-<script>
-    async function signOut() {
-        await fetch("http://localhost:8000/logout", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "test/html",
-                },
-                body: ""
-            });
-        document.write("Successfully logged out.");
-    }
-</script>
+        <nav>
+            <a href="/store">Store</a>
+            <a href="/cart.html">Cart</a>
+            <a href="/">Home</a>
+        </nav>
     </header>
+    <main>
+        <section>
+            <h2>You are logged in</h2>
+            <p>Use the button below to sign out.</p>
+            <button onclick="signOut()">Sign out</button>
+        </section>
+    </main>
+    <script>
+        async function signOut() {
+            await fetch("http://localhost:8000/logout", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "text/html",
+                    },
+                    body: ""
+                });
+            document.write("Successfully logged out.");
+        }
+    </script>
+</body>
 </html>

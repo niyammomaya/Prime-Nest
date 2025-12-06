@@ -1,32 +1,75 @@
+<!DOCTYPE html>
 <html>
-  <body>
+<head>
+    <title>PrimeNest Login</title>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="style.css">
     <script src="https://accounts.google.com/gsi/client" async></script>
+</head>
+<body>
+    <header style="display:flex; justify-content:space-between; align-items:center;">
+        <nav style="display:flex; gap:14px; align-items:center;">
+            <a href="/">Home</a>
+            <a href="/store">Store</a>
+            <a href="/cart.html">Cart</a>
+        </nav>
+        <button id="signOutBtn" type="button" style="display:none;" onclick="signOut()">Sign out</button>
+    </header>
+    <main>
+        <section>
+            <h2>Sign in with Google</h2>
+            <p>Use the Google button below to sign in.</p>
+            <div id="buttonDiv"></div>
+            <div id="signedInMsg" class="muted" style="display:none; margin-top:10px;">You are signed in.</div>
+            <div class="controls" style="margin-top:12px;">
+                <button id="signOutBtn" type="button" style="display:none;" onclick="signOut()">Sign out</button>
+            </div>
+        </section>
+
+    </main>
     <script>
         async function handleCredentialResponse(response) {
             let a = await fetch("http://localhost:8000/google-login", {
                 method: "POST",
                 headers: {
-                    "Content-Type": "test/html",
+                    "Content-Type": "text/html",
                 },
                 body: response.credential
             });
             if (a.status == 200) {
-                document.write("Successfully logged in.");
+                window.location = "/store";
             } else {
-                document.write("Failed to log in.");
+                alert("Failed to log in.");
             }
         }
         window.onload = function () {
             google.accounts.id.initialize({
-            client_id: "391687210332-d60o4n8rp92estqtv9ejsugmo2ohpqj0.apps.googleusercontent.com",
-            callback: handleCredentialResponse
-        });
-        google.accounts.id.renderButton(
-            document.getElementById("buttonDiv"),
-            { theme: "outline", size: "large" }  // customization attributes
-        );
-    }
+                client_id: "391687210332-d60o4n8rp92estqtv9ejsugmo2ohpqj0.apps.googleusercontent.com",
+                callback: handleCredentialResponse
+            });
+            google.accounts.id.renderButton(
+                document.getElementById("buttonDiv"),
+                { theme: "outline", size: "large" }
+            );
+            updateAuthUI();
+        };
+        function updateAuthUI() {
+            fetch("/auth-status").then(async (res) => {
+                const logged = res.status === 200;
+                document.getElementById("buttonDiv").style.display = logged ? "none" : "block";
+                document.getElementById("signedInMsg").style.display = logged ? "block" : "none";
+                document.getElementById("signOutBtn").style.display = logged ? "inline-block" : "none";
+            }).catch(() => {
+                document.getElementById("buttonDiv").style.display = "block";
+                document.getElementById("signedInMsg").style.display = "none";
+                document.getElementById("signOutBtn").style.display = "none";
+            });
+        }
+        async function signOut() {
+            await fetch("/logout", { method: "POST", headers: { "Content-Type": "text/html" } });
+            window.location = "/";
+        }
+        document.addEventListener("DOMContentLoaded", updateAuthUI);
     </script>
-    <div id="buttonDiv"></div>
-  </body>
+</body>
 </html>

@@ -2,15 +2,22 @@ const SmartyStreetsSDK = require("smartystreets-javascript-sdk");
 const SmartyStreetsCore = SmartyStreetsSDK.core;
 const Lookup = SmartyStreetsSDK.usStreet.Lookup;
 
- let authId = 'YOUR_AUTH_ID_HERE'; // YOUR Auth id here
- let authToken = 'YOUR_AUTH_TOKEN_HERE'; // YOUR Auth token here
+const authId = process.env.SMARTY_AUTH_ID || 'YOUR_AUTH_ID_HERE'; // YOUR Auth id here
+const authToken = process.env.SMARTY_AUTH_TOKEN || 'YOUR_AUTH_TOKEN_HERE'; // YOUR Auth token here
 
-let clientBuilder = new SmartyStreetsCore.ClientBuilder(new SmartyStreetsCore.StaticCredentials(authId, authToken));
-let client = clientBuilder.buildUsStreetApiClient();
+let client = null;
+if (authId && authToken && authId !== 'YOUR_AUTH_ID_HERE' && authToken !== 'YOUR_AUTH_TOKEN_HERE') {
+    const clientBuilder = new SmartyStreetsCore.ClientBuilder(new SmartyStreetsCore.StaticCredentials(authId, authToken));
+    client = clientBuilder.buildUsStreetApiClient();
+}
 
 //returns 1 if address is valid and -1 if not
 async function addressValidation_controller(body) {
     try {
+        if (!client) {
+            console.warn("SmartyStreets credentials missing; skipping address validation.");
+            return 1; // don't block orders when credentials are not configured
+        }
         const result = await validateAddress(body);
         console.log(result); // Output will be 1 if the address is valid
         return result;

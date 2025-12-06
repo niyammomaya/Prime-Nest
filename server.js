@@ -1,3 +1,4 @@
+require('dotenv').config(); // load environment variables from .env if present
 const http = require('http');
 const fs = require('fs');
 const querystring = require('querystring');
@@ -6,16 +7,28 @@ const validator = require("email-validator");
 const generator = require('generate-password');
 const nodemailer = require("nodemailer");
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcrypt');
+const { createOrder } = require('./makeOrder.js');
+const bcrypt = require('bcryptjs');
+const mysql = require("mysql2");
+
+const dbUser = process.env.DB_USER || "root";
+const dbPass = process.env.DB_PASS;
+const dbName = process.env.DB_NAME || "primenest";
+const dbHost = process.env.DB_HOST || "localhost";
 const saltRounds = 10;
 const port = 8000;
 let dBCon = {};
 let loginhtml;
 let logouthtml;
+let storehtml;
+let indexhtml;
+let carthtml;
+let checkouthtml;
 const {OAuth2Client} = require('google-auth-library');
 const client = new OAuth2Client();
-const CLIENT_ID = "391687210332-d60o4n8rp92estqtv9ejsugmo2ohpqj0.apps.googleusercontent.com";
-const stripe = require('stripe')('sk_test_51P8St3RqBSq1p5cwbhtHznk4oCu8oEFzRsQXuvPKdnDRjYRyhms7O22ou6E8HgwRzRMFxaGUlnZNoAon9JjqeJI000EI7Oq7o9');
+const CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "391687210332-d60o4n8rp92estqtv9ejsugmo2ohpqj0.apps.googleusercontent.com";
+const stripeSecret = process.env.STRIPE_SECRET_KEY || process.env.STRIPE_API_KEY;
+const stripe = stripeSecret ? require('stripe')(stripeSecret) : null;
 
 
 const transporter = nodemailer.createTransport({
@@ -34,8 +47,54 @@ const maxReviewScore = 5;
 try {
     loginhtml = fs.readFileSync('login.html', 'utf8');
     logouthtml = fs.readFileSync('logout.html', 'utf8');
+    storehtml = fs.readFileSync('store.html', 'utf8');
+    indexhtml = fs.readFileSync('index.html', 'utf8');
+    carthtml = fs.readFileSync('cart.html', 'utf8');
+    checkouthtml = fs.readFileSync('checkout.html', 'utf8');
 } catch (error) {
     throw error;
+} 
+
+// Create a Stripe checkout session from the user's cart
+async function createCheckoutSession(userEmail) {
+    if (!userEmail || userEmail === -1 || userEmail instanceof Error) {
+        return { code: 401, hdrs: {"Content-Type": "application/json"}, body: JSON.stringify({ message: "Not logged in." }) };
+    }
+    if (!stripe) {
+        return { code: 500, hdrs: {"Content-Type": "application/json"}, body: JSON.stringify({ message: "Stripe key not configured." }) };
+    }
+    try {
+        const [cartItems] = await dBCon.promise().query(
+            `SELECT p.product_ID, p.name, p.description, scp.quantity, p.price 
+             FROM shoppingcartproducts scp
+             JOIN products p ON scp.product_ID = p.product_ID
+             WHERE scp.email = ?`, [userEmail]
+        );
+        if (!cartItems || cartItems.length === 0) {
+            return { code: 400, hdrs: {"Content-Type": "application/json"}, body: JSON.stringify({ message: "Cart is empty." }) };
+        }
+        const line_items = cartItems.map(item => ({
+            price_data: {
+                currency: 'usd',
+                product_data: {
+                    name: item.name || 'Item',
+                    description: (item.description || '').substring(0, 200)
+                },
+                unit_amount: Math.max(50, Math.round((item.price || 0) * 100))
+            },
+            quantity: item.quantity || 1
+        }));
+        const session = await stripe.checkout.sessions.create({
+            mode: 'payment',
+            line_items,
+            success_url: 'http://localhost:8000/success.html?session_id={CHECKOUT_SESSION_ID}',
+            cancel_url: 'http://localhost:8000/checkout.html',
+        });
+        return { code: 200, hdrs: {"Content-Type": "application/json"}, body: JSON.stringify({ url: session.url }) };
+    } catch (err) {
+        console.error('Stripe checkout error:', err);
+        return { code: 500, hdrs: {"Content-Type": "application/json"}, body: JSON.stringify({ message: "Checkout error." }) };
+    }
 }
 
 const readline = require('readline').createInterface({
@@ -43,19 +102,22 @@ const readline = require('readline').createInterface({
     output: process.stdout,
 });
 
-readline.question('Enter password: ', pass => { // read password
-    const mysql = require("mysql2");
+function startServerWithPassword(pass) {
     dBCon = mysql.createConnection({ // MySQL database
-        host: "localhost",
-        user: "root",
-        database: "primenest",
+        host: dbHost,
+        user: dbUser,
+        database: dbName,
         password: pass
     });
-    dBCon.connect(function(err) { if (err) throw err; });
+    dBCon.connect(function(err) { 
+        if (err) {
+            console.error("Failed to connect to MySQL:", err.message);
+            process.exit(1);
+        }
+    });
     server.listen(port);
     console.log('Listening on port ' + port + '...');
-
-});
+}
 
 const server = http.createServer((req, res) => { 
     let urlParts = [];
@@ -80,9 +142,31 @@ const server = http.createServer((req, res) => {
         // Initialize a variable to store the parsed body 
         // (USED FOR POST OR ANY CALL THAT REQUIRES THE BODY ^)
         let parsedBody = null;
+
+        let userEmail = await getEmail(req);
+        let isLoggedIn = (!(userEmail instanceof Error) && userEmail != -1);
+        let pathRoot = urlParts[0] || "";
+        const publicPaths = ["", "google-login", "style.css", "favicon.ico", "login.html", "login", "auth-status"];
+        if (!isLoggedIn && publicPaths.indexOf(pathRoot) === -1) {
+            res.writeHead(302, { "Location": "/" });
+            res.end();
+            return;
+        }
         
         if (urlParts[0]) {
             switch(urlParts[0]) {
+                case 'style.css':
+                    try {
+                        const css = fs.readFileSync('style.css', 'utf8');
+                        resMsg.code = 200;
+                        resMsg.hdrs = {"Content-Type" : "text/css"};
+                        resMsg.body = css;
+                    } catch (err) {
+                        resMsg.code = 404;
+                        resMsg.hdrs = {"Content-Type" : "text/plain"};
+                        resMsg.body = "Not found";
+                    }
+                    break;
                 case 'product-catalog':
                     resMsg = await productCatalog(req, body, urlParts);
                     break;
@@ -145,22 +229,54 @@ const server = http.createServer((req, res) => {
                             break;
                     }
                     break;
+                case 'create-checkout-session':
+                    if (req.method === 'POST') {
+                        resMsg = await createCheckoutSession(userEmail);
+                    }
+                    break;
+                case 'auth-status':
+                    if (isLoggedIn) {
+                        resMsg.code = 200;
+                        resMsg.hdrs = {"Content-Type" : "application/json"};
+                        resMsg.body = JSON.stringify({ loggedIn: true, email: userEmail });
+                    } else {
+                        resMsg.code = 401;
+                        resMsg.hdrs = {"Content-Type" : "application/json"};
+                        resMsg.body = JSON.stringify({ loggedIn: false });
+                    }
+                    break;
+                case 'store':
+                case 'store.html':
+                    resMsg.code = 200;
+                    resMsg.hdrs = {"Content-Type" : "text/html"};
+                    resMsg.body = storehtml;
+                    break;
+                case 'cart':
+                case 'cart.html':
+                    resMsg.code = 200;
+                    resMsg.hdrs = {"Content-Type" : "text/html"};
+                    resMsg.body = carthtml;
+                    break;
+                case 'checkout':
+                case 'checkout.html':
+                    resMsg.code = 200;
+                    resMsg.hdrs = {"Content-Type" : "text/html"};
+                    resMsg.body = checkouthtml;
+                    break;
+                case 'login.html':
+                    resMsg.code = 200;
+                    resMsg.hdrs = {"Content-Type" : "text/html"};
+                    resMsg.body = loginhtml;
+                    break;
                 default:
                     break;
             }
         } else {
             switch(req.method) {
                 case 'GET':
-                    let user_ID = await getUserID(req);
-                    if (user_ID instanceof Error || user_ID == -1) {
-                        resMsg.code = 200;
-                        resMsg.hdrs = {"Content-Type" : "text/html"};
-                        resMsg.body = loginhtml;
-                    } else {
-                        resMsg.code = 200;
-                        resMsg.hdrs = {"Content-Type" : "text/html"};
-                        resMsg.body = logouthtml;
-                    }
+                    resMsg.code = 200;
+                    resMsg.hdrs = {"Content-Type" : "text/html"};
+                    resMsg.body = indexhtml;
                     break;
                 default:
                     break;
@@ -175,6 +291,16 @@ const server = http.createServer((req, res) => {
         res.end(resMsg.body);
     });
 });
+
+if (dbPass !== undefined) {
+    startServerWithPassword(dbPass);
+    readline.close();
+} else {
+    readline.question('Enter password: ', pass => { // read password
+        startServerWithPassword(pass);
+        readline.close();
+    });
+}
 
 async function user(req, body, urlParts) {
     let resMsg = {};
@@ -1415,7 +1541,30 @@ async function handleAddProductToCart(userEmail, body) {
 
     try {
         // Use helper function to verify product availability
-        const availability = await verifyProductAvailability(productDetails.product_ID);
+        let availability = await verifyProductAvailability(productDetails.product_ID);
+
+        // If the product is missing but we have details from the client (e.g., mock items), seed a minimal product row.
+        if (!availability.exists && productDetails.name && productDetails.price) {
+            const fallbackCategory = productDetails.category || 'misc';
+            const fallbackDesc = productDetails.description || null;
+            await dBCon.promise().query(
+                'INSERT INTO products (product_ID, name, material, description, stock, price, height_in, width_in, length_in, category, weight_oz, color) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                [
+                    productDetails.product_ID,
+                    productDetails.name,
+                    null,
+                    fallbackDesc,
+                    999, // generous stock for mock items
+                    productDetails.price,
+                    1, 1, 1,
+                    fallbackCategory,
+                    1,
+                    null
+                ]
+            );
+            availability = { exists: true, available: true, stock: 999 };
+        }
+
         if (!availability.exists || !availability.available) {
             resMsg.code = availability.exists ? 409 : 404;
             resMsg.body = JSON.stringify({ message: availability.exists ? "Insufficient stock." : "Product does not exist." });
@@ -1544,10 +1693,13 @@ function roundPrice(num) {
 async function makeOrder(req, body, urlParts) {
     let resMsg = {};
     
-    let email = getEmail(req);
+    const email = await getEmail(req);
+    if (email instanceof Error || email === -1) {
+        return { code: 401, hdrs: {"Content-Type" : "text/html"}, body: "Please login to place an order." };
+    }
     const queries = [
-        "select * from shoppingcarts where user_ID = '" + email + "'",
-        "select * from shoppingcartproducts where user_ID = '" + email + "'",
+        "select * from shoppingcarts where email = '" + email + "'",
+        "select * from shoppingcartproducts where email = '" + email + "'",
         "select * from products join shoppingcartproducts on products.product_ID = shoppingcartproducts.product_ID where shoppingcartproducts.email = '" + email + "'",
     ];
     const results = []; //results format = [[{shoppingcartproducts of user}], [{cartInf0}], [{product info}]];
@@ -1557,7 +1709,7 @@ async function makeOrder(req, body, urlParts) {
             let temp = await executeQueries(queries[i]);
             results.push(temp);
         } catch (error) {
-            failedDB();
+            return failedDB();
         }
     }
     let discounted_price = await applyDiscounts(results);
@@ -1570,23 +1722,27 @@ async function makeOrder(req, body, urlParts) {
     }
    
    
-    await insertOrder(result);
-    if(insertOrder) {
-        resMsg.code = 200;
-        resMsg.hdrs = {"Content-Type" : "text/html"};
-        resMsg.body = "successfully placed order :D\norder_ID: " + result.order_ID; 
-        return resMsg;
+    try {
+        await insertOrder(result);
+    } catch (error) {
+        return failedDB();
     }
-    return;
+
+    resMsg.code = 200;
+    resMsg.hdrs = {"Content-Type" : "text/html"};
+    resMsg.body = "successfully placed order :D\norder_ID: " + result.order_ID; 
+    return resMsg;
 }
 
 async function applyDiscounts(orderInfoArray) {
     let discounted_price = 0;
     for(let i = 0; i < orderInfoArray[2].length; i++) {
-       let new_price = await getDiscounts(orderInfoArray[2][i].product_ID, orderInfoArray[2][i].cost);
-       discounted_price += new_price[0];
+       const product = orderInfoArray[2][i];
+       const discountInfo = await getDiscounts(product.product_ID, product.price);
+       const discountedUnitPrice = (Array.isArray(discountInfo) && discountInfo[0]) ? discountInfo[0] : product.price;
+       const quantity = product.quantity || 1;
+       discounted_price += discountedUnitPrice * quantity;
     }
-    discounted_price = parseInt("FF", 16);
     return  discounted_price;
 }
 
@@ -1647,11 +1803,8 @@ async function cancelOrder(req, body, urlParts) {
                 body: JSON.stringify({ message: "Order has already been shipped and cannot be canceled." })
             };
         } 
-       const refund = await stripe.refunds.create({
-          charge: '',
-            });
-       
-        // Proceed with the cancellation
+
+        // Proceed with the cancellation (no stored charge id, so skip refund API)
         await dBCon.promise().query(
             "UPDATE orders SET status = ? WHERE order_ID = ?;", 
             ["canceled", parseInt(orderID)]
@@ -1660,10 +1813,15 @@ async function cancelOrder(req, body, urlParts) {
     
     
         // Output the order ID and total refund
+        const [orderInfo] = await dBCon.promise().query(
+            'SELECT products_cost FROM orders WHERE order_ID = ?',
+            [orderID]
+        );
+        const totalRefund = orderInfo[0]?.products_cost ?? null;
         resMsg = {
             code: 200,
             hdrs: { "Content-Type": "application/json" },
-            body: JSON.stringify({ message: "Order cancelled successfully and refund processed.", orderID: order.order_ID, totalRefund: order.products_cost})
+            body: JSON.stringify({ message: "Order cancelled successfully.", orderID: parseInt(orderID), totalRefund })
         };
         
     } catch (error) {
