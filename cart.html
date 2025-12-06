@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PrimeNest Cart</title>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header style="display:flex; justify-content:space-between; align-items:center;">
+        <nav style="display:flex; gap:14px; align-items:center;">
+            <a href="/">Home</a>
+            <a href="/store">Store</a>
+            <a href="/cart.html">Cart</a>
+        </nav>
+        <div class="controls" style="margin-top:0;">
+            <button type="button" onclick="signOut()">Sign out</button>
+        </div>
+    </header>
+    <main>
+        <section>
+            <h2>Your Cart</h2>
+            <p class="tagline">Items you've added plus a running total.</p>
+            <div class="controls">
+                <a href="/checkout.html"><button type="button">Proceed to Checkout</button></a>
+            </div>
+            <div id="cart-items" class="stack"></div>
+            <div id="cart-total" class="cart-total"></div>
+        </section>
+    </main>
+
+    <script>
+        async function loadCart() {
+            const cartEl = document.getElementById('cart-items');
+            const totalEl = document.getElementById('cart-total');
+            cartEl.innerHTML = '<p class="muted">Loading cart...</p>';
+            totalEl.textContent = '';
+            try {
+                const res = await fetch('/shopping-cart');
+                if (res.status === 401) {
+                    cartEl.innerHTML = '<p class="muted">Please log in to view your cart.</p>';
+                    totalEl.textContent = '';
+                    return;
+                }
+                if (!res.ok) {
+                    cartEl.innerHTML = '<p class="muted">Could not load cart.</p>';
+                    totalEl.textContent = '';
+                    return;
+                }
+                const data = await res.json();
+                if (data.items && data.items.length > 0) {
+                    const list = document.createElement('div');
+                    list.className = 'stack';
+                    data.items.forEach(item => {
+                        const row = document.createElement('div');
+                        row.className = 'card cart-item';
+                    row.innerHTML = `
+                        <div>
+                            <strong>${item.name}</strong>
+                            <div class="muted">Price: $${(item.price ?? 0).toFixed(2)}</div>
+                            <div class="muted">Qty: ${item.quantity}</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div class="price">$${(item.price * item.quantity).toFixed(2)}</div>
+                            <div class="controls">
+                                <button type="button" data-action="remove" style="background:#d14343;">Remove</button>
+                            </div>
+                        </div>
+                    `;
+                    row.querySelector('button[data-action="remove"]').onclick = () => removeCartItem(item.product_ID);
+                    list.appendChild(row);
+                });
+                cartEl.innerHTML = '';
+                cartEl.appendChild(list);
+                totalEl.textContent = 'Total: $' + (data.totalCost || 0).toFixed(2);
+                } else {
+                cartEl.innerHTML = '<p class="muted">Your cart is empty - start shopping in the Store!</p>';
+                    totalEl.textContent = '';
+                }
+            } catch (err) {
+                cartEl.innerHTML = '<p class="muted">Error loading cart.</p>';
+                totalEl.textContent = '';
+                console.error(err);
+            }
+        }
+
+    async function removeCartItem(productId) {
+        try {
+            const res = await fetch('/shopping-cart/products/' + encodeURIComponent(productId), {
+                method: 'DELETE'
+            });
+                if (!res.ok) {
+                    const msg = await res.text();
+                    alert('Could not remove item: ' + msg);
+                    return;
+                }
+                loadCart();
+            } catch (err) {
+                alert('Error removing item');
+            }
+        }
+
+        loadCart();
+
+        async function signOut() {
+            await fetch("/logout", { method: "POST", headers: { "Content-Type": "text/html" } });
+            document.location = "/";
+        }
+    </script>
+</body>
+</html>

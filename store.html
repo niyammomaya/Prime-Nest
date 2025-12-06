@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PrimeNest Store</title>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header style="display:flex; justify-content:space-between; align-items:center;">
+        <nav style="display:flex; gap:14px; align-items:center;">
+            <a href="/">Home</a>
+            <a href="/store">Store</a>
+            <a href="/cart.html">Cart</a>
+        </nav>
+        <div class="controls" style="margin-top:0;">
+            <button type="button" onclick="signOut()">Sign out</button>
+        </div>
+    </header>
+    <main>
+        <div class="layout">
+            <section>
+                <h2>Shop Products</h2>
+                <p class="tagline">Browse and add to cart. Click an item for details.</p>
+                <div class="controls">
+                    <input id="searchInput" type="text" placeholder="Search name, description, or category">
+                    <select id="filterCategory">
+                        <option value="">All categories</option>
+                        <option value="shoes">Shoes</option>
+                        <option value="bags">Bags</option>
+                        <option value="electronics">Electronics</option>
+                        <option value="apparel">Apparel</option>
+                    </select>
+                    <input id="minPrice" type="number" min="0" step="1" placeholder="Min $" style="width:90px;">
+                    <input id="maxPrice" type="number" min="0" step="1" placeholder="Max $" style="width:90px;">
+                    <select id="minRating">
+                        <option value="">Any rating</option>
+                        <option value="4">4+ stars</option>
+                        <option value="3">3+ stars</option>
+                        <option value="2">2+ stars</option>
+                    </select>
+                    <select id="sortBy">
+                        <option value="">Sort</option>
+                        <option value="price-asc">Price: Low to High</option>
+                        <option value="price-desc">Price: High to Low</option>
+                        <option value="rating-desc">Rating: High to Low</option>
+                        <option value="name-asc">Name: A to Z</option>
+                    </select>
+                    <button type="button" onclick="loadProducts()">Search</button>
+                    <button type="button" onclick="clearSearch()">Clear</button>
+                </div>
+                <div id="status" class="muted"></div>
+                <div id="products" class="grid"></div>
+            </section>
+
+            <section id="cart">
+                <h2>Your Cart</h2>
+                <p class="tagline">Items you've added plus a running total.</p>
+                <div id="cart-status" class="muted" style="margin-bottom:8px;"></div>
+                <div id="cart-items" class="stack"></div>
+                <div id="cart-total" class="cart-total"></div>
+            </section>
+        </div>
+    </main>
+
+    <script>
+        const mockProducts = [
+            { product_ID: 'MOCK-SHOE-1', name: 'Canvas Sneakers', description: 'Light canvas shoes.', long_description: 'Canvas uppers with grippy rubber soles; easy to wear to class or across campus.', manufacturer: 'Stride Co.', use_cases: ['Walking to class', 'Casual hangouts', 'Travel days'], category: 'shoes', price: 49.99, discounted_price: 39.99, average_rating: 4.4 },
+            { product_ID: 'MOCK-SHOE-2', name: 'Trail Runners', description: 'Mesh trail runners.', long_description: 'Breathable mesh with cushioned midsoles and deep lugs for weekend hikes or city parks.', manufacturer: 'Terra Footwear', use_cases: ['Campus jogs', 'Weekend trails', 'Rainy walks'], category: 'shoes', price: 89.99, discounted_price: 79.99, average_rating: 4.6 },
+            { product_ID: 'MOCK-SHOE-3', name: 'Slip-On Slides', description: 'Slides for home.', long_description: 'Soft footbed and quick-dry straps you can wear for dorm showers, pool, or lounging.', manufacturer: 'EasyStep', use_cases: ['Dorm showers', 'Pool days', 'Post-gym'], category: 'shoes', price: 24.00, discounted_price: 20.00, average_rating: 4.1 },
+            { product_ID: 'MOCK-BAG-1', name: 'Day Backpack', description: 'Daily laptop pack.', long_description: 'Padded laptop sleeve, bottle pockets, and a front stash for keys and small tech.', manufacturer: 'Northline', use_cases: ['Class commutes', 'Library days', 'Weekend trips'], category: 'bags', price: 59.00, discounted_price: 59.00, average_rating: 4.2 },
+            { product_ID: 'MOCK-BAG-2', name: 'Weekend Duffel', description: 'Soft canvas duffel.', long_description: "Carry-on sized duffel that fits a weekend's clothes plus a side pocket for shoes.", manufacturer: 'Northline', use_cases: ['Weekend visits', 'Gym gear', 'Carry-on travel'], category: 'bags', price: 74.00, discounted_price: 68.00, average_rating: 4.1 },
+            { product_ID: 'MOCK-BAG-3', name: 'Messenger Bag', description: 'Slim shoulder bag.', long_description: 'Slim shoulder bag with quick-access flap, padded tablet sleeve, and simple organizers.', manufacturer: 'Urban Thread', use_cases: ['Light class days', 'Coffee shop study', 'Interviews'], category: 'bags', price: 52.00, discounted_price: 49.00, average_rating: 4.0 },
+            { product_ID: 'MOCK-HEAD-1', name: 'Wireless Headphones', description: 'Over-ear wireless.', long_description: '30-hour battery, plush cushions, and easy Bluetooth pairing for music or lectures.', manufacturer: 'SoundLab', use_cases: ['Study playlists', 'Zoom classes', 'Gym sessions'], category: 'electronics', price: 89.00, discounted_price: 69.00, average_rating: 4.6 },
+            { product_ID: 'MOCK-HEAD-2', name: 'Noise Canceling', description: 'Quiet travel pair.', long_description: 'Active noise canceling with fold-flat hinges and a travel case for flights or dorm focus.', manufacturer: 'QuietTune', use_cases: ['Library focus', 'Flights home', 'Roommate noise'], category: 'electronics', price: 129.00, discounted_price: 109.00, average_rating: 4.7 },
+            { product_ID: 'MOCK-HEAD-3', name: 'In-Ear Buds', description: 'Simple wired buds.', long_description: 'Wired buds with in-line mic and soft tips; easy backup for laptop or phone.', manufacturer: 'SoundLab', use_cases: ['Back-up audio', 'Walking between classes', 'Phone calls'], category: 'electronics', price: 19.00, discounted_price: 15.00, average_rating: 4.0 },
+            { product_ID: 'MOCK-SOCK-1', name: 'Crew Socks (3-pack)', description: 'Soft crew socks.', long_description: 'Cotton blend socks with cushioned heel and toe in neutral colors.', manufacturer: 'CozyKnit', use_cases: ['Everyday wear', 'Gym bag spare', 'Cold lecture halls'], category: 'apparel', price: 14.99, discounted_price: 12.99, average_rating: 4.8 },
+            { product_ID: 'MOCK-TEE-1', name: 'Cotton Tee', description: 'Plain soft tee.', long_description: 'Relaxed fit cotton tee with a smooth neckline for layering.', manufacturer: 'Everyday Threads', use_cases: ['Layering', 'Casual days', 'Sleep tee'], category: 'apparel', price: 19.99, discounted_price: 17.99, average_rating: 4.3 },
+            { product_ID: 'MOCK-TIE-1', name: 'Navy Tie', description: 'Simple silk tie.', long_description: 'Matte silk tie with a clean drape and simple navy color.', manufacturer: 'Civic Tailors', use_cases: ['Presentations', 'Career fair', 'Date night'], category: 'apparel', price: 29.00, discounted_price: 24.00, average_rating: 4.2 }
+        ];
+
+        async function loadProducts() {
+            const search = document.getElementById('searchInput').value.trim();
+            const categoryFilter = document.getElementById('filterCategory').value;
+            const minPriceVal = toNumber(document.getElementById('minPrice').value);
+            const maxPriceVal = toNumber(document.getElementById('maxPrice').value);
+            const minRatingVal = toNumber(document.getElementById('minRating').value);
+            const sortBy = document.getElementById('sortBy').value;
+            const statusEl = document.getElementById('status');
+            const container = document.getElementById('products');
+            statusEl.textContent = 'Loading products...';
+            container.innerHTML = '';
+
+            try {
+                let url = '/product-catalog/search?';
+                if (search) {
+                    url += 'key=' + encodeURIComponent(search);
+                }
+                const res = await fetch(url);
+                if (!res.ok) {
+                    statusEl.textContent = 'Showing products.';
+                    renderProducts(filterList(mockProducts, search, categoryFilter, { minPriceVal, maxPriceVal, minRatingVal, sortBy }));
+                    return;
+                }
+                const data = await res.json();
+                let results = data.results || [];
+                results = filterList(results, search, categoryFilter, { minPriceVal, maxPriceVal, minRatingVal, sortBy });
+                if (!results || results.length === 0) {
+                    statusEl.textContent = 'No matches found; showing mock products.';
+                    renderProducts(filterList(mockProducts, search, categoryFilter, { minPriceVal, maxPriceVal, minRatingVal, sortBy }));
+                    return;
+                }
+                statusEl.textContent = `${results.length} products`;
+                renderProducts(results);
+            } catch (err) {
+                statusEl.textContent = 'Showing products.';
+                renderProducts(filterList(mockProducts, search, categoryFilter, { minPriceVal, maxPriceVal, minRatingVal, sortBy }));
+                console.error(err);
+            }
+        }
+
+        function filterList(list, keyword, categoryFilter, { minPriceVal, maxPriceVal, minRatingVal, sortBy }) {
+            const k = (keyword || "").toLowerCase();
+            return list.filter(p => {
+                const matchesText = !k || (p.name || '').toLowerCase().includes(k) ||
+                    (p.description || '').toLowerCase().includes(k) ||
+                    (p.category || '').toLowerCase().includes(k);
+                const matchesCat = !categoryFilter || (p.category || '').toLowerCase() === categoryFilter.toLowerCase();
+                const priceVal = p.discounted_price ?? p.price ?? 0;
+                const matchesMinPrice = !minPriceVal || priceVal >= minPriceVal;
+                const matchesMaxPrice = !maxPriceVal || priceVal <= maxPriceVal;
+                const ratingVal = p.average_rating ?? 0;
+                const matchesRating = !minRatingVal || ratingVal >= minRatingVal;
+                return matchesText && matchesCat && matchesMinPrice && matchesMaxPrice && matchesRating;
+            }).sort((a, b) => sortProducts(a, b, sortBy));
+        }
+
+        function clearSearch() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('minPrice').value = '';
+            document.getElementById('maxPrice').value = '';
+            document.getElementById('minRating').value = '';
+            document.getElementById('sortBy').value = '';
+            loadProducts();
+        }
+
+        function renderProducts(products) {
+            const container = document.getElementById('products');
+            container.innerHTML = '';
+            if (!products || products.length === 0) {
+                container.innerHTML = '<p class="muted">No products found.</p>';
+                return;
+            }
+            products.forEach(p => {
+                const desc = p.long_description || p.description || 'No description.';
+                const snippet = desc.length > 80 ? desc.substring(0, 80) + '...' : desc;
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <h3>${p.name || 'Unnamed Product'}</h3>
+                    <div class="muted">${formatCategory(p.category)}</div>
+                    <div class="stars">${renderStars(p.average_rating)} <span class="muted" style="color:#4b5563;">${p.average_rating ? p.average_rating.toFixed(1) : 'N/A'}</span></div>
+                    <div class="price">$${(p.discounted_price ?? p.price ?? 0).toFixed(2)}</div>
+                    ${p.discounted_price && p.discounted_price !== p.price ? `<div class="muted">Was $${(p.price ?? 0).toFixed(2)}</div>` : ''}
+                    <p class="muted" style="min-height:40px;">${snippet}</p>
+                    <div class="controls">
+                        <input type="number" min="1" value="1" style="width:70px;" aria-label="Quantity" />
+                        <button type="button" data-product="${p.product_ID}">Add to cart</button>
+                    </div>
+                `;
+                const qtyInput = card.querySelector('input[type="number"]');
+                const btn = card.querySelector('button');
+                btn.addEventListener('click', () => addToCart(p, parseInt(qtyInput.value, 10) || 1));
+                card.addEventListener('click', async (e) => {
+                    if (e.target.tagName.toLowerCase() === 'button' || e.target.tagName.toLowerCase() === 'input') return;
+                    await showDetails(p, card);
+                });
+                container.appendChild(card);
+            });
+        }
+
+        function renderStars(rating) {
+            if (!rating || rating <= 0) return "☆☆☆☆☆";
+            const full = Math.min(5, Math.floor(rating));
+            const half = (rating - full) >= 0.5 ? 1 : 0;
+            const empty = 5 - full - half;
+            return "★".repeat(full) + (half ? "⯪" : "") + "☆".repeat(empty);
+        }
+
+        function formatCategory(cat) {
+            if (!cat) return '';
+            return cat.charAt(0).toUpperCase() + cat.slice(1);
+        }
+
+        function toNumber(val) {
+            const n = parseFloat(val);
+            return isNaN(n) ? null : n;
+        }
+
+        function sortProducts(a, b, sortBy) {
+            const priceA = a.discounted_price ?? a.price ?? 0;
+            const priceB = b.discounted_price ?? b.price ?? 0;
+            const ratingA = a.average_rating ?? 0;
+            const ratingB = b.average_rating ?? 0;
+            switch (sortBy) {
+                case 'price-asc':
+                    return priceA - priceB;
+                case 'price-desc':
+                    return priceB - priceA;
+                case 'rating-desc':
+                    return ratingB - ratingA;
+                case 'name-asc':
+                    return (a.name || '').localeCompare(b.name || '');
+                default:
+                    return 0;
+            }
+        }
+
+        async function showDetails(product, card) {
+            const detailId = `detail-${product.product_ID}`;
+            if (document.getElementById(detailId)) {
+                document.getElementById(detailId).remove();
+                return;
+            }
+            const detail = document.createElement('div');
+            detail.id = detailId;
+            detail.className = 'muted';
+            detail.textContent = 'Loading details...';
+            card.appendChild(detail);
+            try {
+                const res = await fetch('/product-catalog/' + encodeURIComponent(product.product_ID));
+                if (!res.ok) {
+                    throw new Error('Could not load details');
+                }
+                const data = await res.json();
+                const description = data.description || product.long_description || product.description || 'No description.';
+                const maker = product.manufacturer || 'Generic Co.';
+                const uses = product.use_cases || ['Study time', 'Gym', 'Commute'];
+                const price = data.discounted_price ?? data.price ?? 0;
+                detail.innerHTML = `
+                    <div class="muted">Manufacturer: ${maker}</div>
+                    <div class="price">$${price.toFixed(2)}</div>
+                    <div>${description}</div>
+                    <div class="muted" style="margin-top:6px;">Use cases:</div>
+                    <ul class="muted" style="padding-left:16px; margin-top:4px;">
+                        ${uses.map(u => `<li>${u}</li>`).join('')}
+                    </ul>
+                `;
+            } catch (err) {
+                const description = product.long_description || product.description || 'No description.';
+                const maker = product.manufacturer || 'Generic Co.';
+                const uses = product.use_cases || ['Study time', 'Gym', 'Commute'];
+                detail.innerHTML = `
+                    <div class="muted">Manufacturer: ${maker}</div>
+                    <div>${description}</div>
+                    <div class="muted" style="margin-top:6px;">Use cases:</div>
+                    <ul class="muted" style="padding-left:16px; margin-top:4px;">
+                        ${uses.map(u => `<li>${u}</li>`).join('')}
+                    </ul>
+                `;
+            }
+        }
+
+        async function addToCart(product, quantity) {
+            const productId = product.product_ID;
+            const cartStatus = document.getElementById('cart-status');
+            try {
+                const res = await fetch('/shopping-cart/products', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        product_ID: productId,
+                        quantity,
+                        name: product.name,
+                        price: product.discounted_price ?? product.price,
+                        category: product.category,
+                        description: product.description
+                    })
+                });
+                if (res.status === 401) {
+                    cartStatus.textContent = 'Please log in first.';
+                    return;
+                }
+                if (!res.ok) {
+                    const msg = await res.text();
+                    cartStatus.textContent = 'Could not add to cart: ' + msg;
+                    return;
+                }
+                cartStatus.textContent = 'Added to cart.';
+                loadCart();
+            } catch (err) {
+                cartStatus.textContent = 'Error adding to cart.';
+                console.error(err);
+            }
+        }
+
+        async function loadCart() {
+            const cartEl = document.getElementById('cart-items');
+            const totalEl = document.getElementById('cart-total');
+            cartEl.innerHTML = '<p class="muted">Loading cart...</p>';
+            totalEl.textContent = '';
+            try {
+                const res = await fetch('/shopping-cart');
+                if (res.status === 401) {
+                    cartEl.innerHTML = '<p class="muted">Please log in to view your cart.</p>';
+                    totalEl.textContent = '';
+                    return;
+                }
+                if (!res.ok) {
+                    cartEl.innerHTML = '<p class="muted">Could not load cart.</p>';
+                    totalEl.textContent = '';
+                    return;
+                }
+                const data = await res.json();
+                if (data.items) {
+                    const list = document.createElement('div');
+                    list.className = 'stack';
+                    data.items.forEach(item => {
+                        const row = document.createElement('div');
+                        row.className = 'card cart-item';
+                        row.innerHTML = `
+                            <div>
+                                <strong>${item.name}</strong>
+                                <div class="muted">Price: $${(item.price ?? 0).toFixed(2)}</div>
+                                <div class="muted">Qty: ${item.quantity}</div>
+                            </div>
+                            <div style="text-align:right;">
+                                <div class="price">$${(item.price * item.quantity).toFixed(2)}</div>
+                                <div class="controls">
+                                    <button type="button" data-action="remove" style="background:#d14343;">Remove</button>
+                                </div>
+                            </div>
+                        `;
+                        row.querySelector('button[data-action="remove"]').onclick = () => removeCartItem(item.product_ID);
+                        list.appendChild(row);
+                    });
+                    cartEl.innerHTML = '';
+                    cartEl.appendChild(list);
+                    totalEl.textContent = 'Total: $' + (data.totalCost || 0).toFixed(2);
+                } else {
+                    cartEl.innerHTML = '<p class="muted">Your cart is empty - start shopping in the Store!</p>';
+                    totalEl.textContent = '';
+                }
+            } catch (err) {
+                cartEl.innerHTML = '<p class="muted">Error loading cart.</p>';
+                totalEl.textContent = '';
+                console.error(err);
+            }
+        }
+
+        async function removeCartItem(productId) {
+            try {
+                const res = await fetch('/shopping-cart/products/' + encodeURIComponent(productId), {
+                    method: 'DELETE'
+                });
+                if (!res.ok) {
+                    const msg = await res.text();
+                    alert('Could not remove item: ' + msg);
+                    return;
+                }
+                loadCart();
+            } catch (err) {
+                alert('Error removing item');
+            }
+        }
+
+        // initial load
+        loadProducts();
+        loadCart();
+
+        async function signOut() {
+            await fetch("/logout", { method: "POST", headers: { "Content-Type": "text/html" } });
+            document.location = "/";
+        }
+    </script>
+</body>
+</html>
