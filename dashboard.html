@@ -82,21 +82,29 @@
         const spend = orders.reduce((sum, o) => sum + (o.products_cost || o.total_cost || 0), 0);
         spendEl.textContent = '$' + (spend || 0).toFixed(2);
         const last = orders
-          .map(o => new Date(o.date_made))
-          .filter(d => !isNaN(d))
+          .map(o => {
+            const ts = o.placed_at || o.date_made;
+            return ts ? new Date(ts) : null;
+          })
+          .filter(d => d && !isNaN(d))
           .sort((a, b) => b - a)[0];
-        lastEl.textContent = last ? last.toDateString() : 'N/A';
+        lastEl.textContent = last ? last.toLocaleString() : 'N/A';
 
         listEl.innerHTML = '';
         orders.sort((a, b) => new Date(b.date_made) - new Date(a.date_made));
         orders.forEach(o => {
           const card = document.createElement('div');
           card.className = 'card';
+          const items = Array.isArray(o.items) ? o.items : [];
+          const totalFromItems = items.reduce((sum, it) => sum + (it.price || 0) * (it.quantity || 0), 0);
+          const itemsList = items.map(it => `<li>${it.name || it.product_ID} (Qty ${it.quantity || 0}) - $${(it.price || 0).toFixed(2)}</li>`).join('');
           card.innerHTML = `
             <div><strong>Order ID:</strong> ${o.order_ID || 'N/A'}</div>
-            <div class="muted">Date: ${o.date_made || 'N/A'}</div>
-            <div class="muted">Status: ${o.status || 'N/A'}</div>
-            <div class="muted">Total: $${(o.total_cost ?? 0).toFixed(2)}</div>
+            <div class="muted">Date: ${(o.placed_at || o.date_made) ? new Date(o.placed_at || o.date_made).toLocaleString() : 'N/A'}</div>
+            <div class="muted">Status: ${o.display_status || o.status || 'N/A'}</div>
+            <div class="muted">Items:</div>
+            <ul class="muted" style="padding-left:18px;">${itemsList || '<li>No items</li>'}</ul>
+            <div class="muted">Total: $${(o.products_cost ?? totalFromItems ?? 0).toFixed(2)}</div>
           `;
           listEl.appendChild(card);
         });

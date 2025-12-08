@@ -81,6 +81,7 @@ async function makeOrder(req, body, shoppingCart, shoppingCartProduct, discounte
         order_ID: await getOrder_ID(), 
         email: shoppingCart[0].email, 
         date_made: await getDate(), 
+        placed_at: new Date().toISOString().slice(0,19).replace('T',' '),
         payment_method: body.payment_method, 
         products_cost: discounted_prices, // to run without applying discounts: shoppingCart[0].cost, 
         tax_cost: (Math.ceil(discounted_prices * 0.066)*10)/10, //to run without applying discounts: replace "discounted_prices" with shoppingCart[0].cost

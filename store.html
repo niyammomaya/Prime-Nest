@@ -46,6 +46,12 @@
                                 </div>
                                 <span class="muted" style="font-size:12px;">Type or drag to set minimum stars.</span>
                             </label>
+                            <label class="muted" style="display:flex; flex-direction:column; gap:4px;">
+                                Use case(s):
+                                <select id="useCaseSelect" multiple size="6" style="padding:6px 8px; border:1px solid #d1d5db; border-radius:6px; min-width:200px;">
+                                </select>
+                                <span class="muted" style="font-size:12px;">Select one or more. Leave empty for any.</span>
+                            </label>
                         </div>
                     </details>
                     <select id="sortBy">
@@ -125,77 +131,70 @@
     </main>
 
     <script>
-        const mockProducts = [
-            { product_ID: 'MOCK-SHOE-1', name: 'Canvas Sneakers', description: 'Light canvas shoes.', long_description: 'Canvas uppers with grippy rubber soles; easy to wear to class or across campus.', manufacturer: 'Stride Co.', use_cases: ['commute', 'travel', 'casual hangouts', 'walking to class'], category: 'shoes', price: 49.99, discounted_price: 39.99, average_rating: 4.4, review_count: 10, rating_distribution: [0,1,2,3,4] },
-            { product_ID: 'MOCK-SHOE-2', name: 'Trail Runners', description: 'Breathable mesh trail runners with cushioned midsoles and deep lugs for hikes and city runs.', long_description: 'Breathable mesh uppers, cushioned midsoles, and deep lugs for traction on weekend hikes or rainy city runs.', manufacturer: 'Terra Footwear', use_cases: ['gym', 'commute', 'travel', 'weekend trails'], category: 'shoes', price: 89.99, discounted_price: 79.99, average_rating: 4.6, review_count: 10, rating_distribution: [0,0,2,3,5] },
-            { product_ID: 'MOCK-SHOE-3', name: 'Slip-On Slides', description: 'Slides for home.', long_description: 'Soft footbed and quick-dry straps you can wear for dorm showers, pool, or lounging.', manufacturer: 'EasyStep', use_cases: ['dorm', 'post-gym', 'pool days'], category: 'shoes', price: 24.00, discounted_price: 20.00, average_rating: 4.1, review_count: 10, rating_distribution: [0,1,3,3,3] },
-            { product_ID: 'MOCK-BAG-1', name: 'Day Backpack', description: 'Daily laptop pack.', long_description: 'Padded laptop sleeve, bottle pockets, and a front stash for keys and small tech.', manufacturer: 'Northline', use_cases: ['commute', 'study', 'travel', 'photo', 'gym'], category: 'bags', price: 59.00, discounted_price: 59.00, average_rating: 4.2, review_count: 10, rating_distribution: [0,1,2,3,4] },
-            { product_ID: 'MOCK-BAG-2', name: 'Weekend Duffel', description: 'Soft canvas duffel.', long_description: "Carry-on sized duffel that fits a weekend's clothes plus a side pocket for shoes.", manufacturer: 'Northline', use_cases: ['travel', 'gym', 'weekend visits'], category: 'bags', price: 74.00, discounted_price: 68.00, average_rating: 4.1, review_count: 10, rating_distribution: [0,1,3,3,3] },
-            { product_ID: 'MOCK-BAG-3', name: 'Messenger Bag', description: 'Slim shoulder bag.', long_description: 'Slim shoulder bag with quick-access flap, padded tablet sleeve, and simple organizers.', manufacturer: 'Urban Thread', use_cases: ['study', 'work', 'commute'], category: 'bags', price: 52.00, discounted_price: 49.00, average_rating: 4.0, review_count: 10, rating_distribution: [0,1,3,3,3] },
-            { product_ID: 'MOCK-HEAD-1', name: 'Wireless Headphones', description: 'Over-ear wireless.', long_description: '30-hour battery, plush cushions, and easy Bluetooth pairing for music or lectures.', manufacturer: 'SoundLab', use_cases: ['study', 'work', 'commute', 'gaming'], category: 'electronics', price: 89.00, discounted_price: 69.00, average_rating: 4.6, review_count: 10, rating_distribution: [0,0,2,3,5] },
-            { product_ID: 'MOCK-HEAD-2', name: 'Noise Canceling', description: 'Quiet travel pair.', long_description: 'Active noise canceling with fold-flat hinges and a travel case for flights or dorm focus.', manufacturer: 'QuietTune', use_cases: ['study', 'travel', 'work', 'dorm'], category: 'electronics', price: 129.00, discounted_price: 109.00, average_rating: 4.7, review_count: 10, rating_distribution: [0,0,1,3,6] },
-            { product_ID: 'MOCK-HEAD-3', name: 'In-Ear Buds', description: 'Simple wired buds.', long_description: 'Wired buds with in-line mic and soft tips; easy backup for laptop or phone.', manufacturer: 'SoundLab', use_cases: ['commute', 'backup audio', 'gaming'], category: 'electronics', price: 19.00, discounted_price: 15.00, average_rating: 4.0, review_count: 10, rating_distribution: [0,1,3,3,3] },
-            { product_ID: 'MOCK-SOCK-1', name: 'Crew Socks (3-pack)', description: 'Soft crew socks.', long_description: 'Cotton blend socks with cushioned heel and toe in neutral colors.', manufacturer: 'CozyKnit', use_cases: ['gym', 'dorm', 'everyday wear'], category: 'apparel', price: 14.99, discounted_price: 12.99, average_rating: 4.1, review_count: 10, rating_distribution: [0,1,3,3,3] },
-            { product_ID: 'MOCK-TEE-1', name: 'Cotton Tee', description: 'Plain soft tee.', long_description: 'Relaxed fit cotton tee with a smooth neckline for layering.', manufacturer: 'Everyday Threads', use_cases: ['casual days', 'dorm', 'layering'], category: 'apparel', price: 19.99, discounted_price: 17.99, average_rating: 4.2, review_count: 10, rating_distribution: [0,1,2,3,4] },
-            { product_ID: 'MOCK-TIE-1', name: 'Navy Tie', description: 'Simple silk tie.', long_description: 'Matte silk tie with a clean drape and simple navy color.', manufacturer: 'Civic Tailors', use_cases: ['work', 'presentations', 'interviews'], category: 'apparel', price: 29.00, discounted_price: 24.00, average_rating: 4.0, review_count: 10, rating_distribution: [0,1,3,3,3] },
-            { product_ID: 'MOCK-BOTTLE-1', name: 'Insulated Water Bottle', description: 'Stainless 24oz bottle.', long_description: 'Double-wall vacuum insulated bottle to keep drinks cold through back-to-back lectures.', manufacturer: 'HydraCo', use_cases: ['commute', 'gym', 'study', 'dorm'], category: 'electronics', price: 28.00, discounted_price: 22.00, average_rating: 4.3, review_count: 10, rating_distribution: [0,1,2,3,4] },
-            { product_ID: 'MOCK-CHARGER-1', name: 'Portable Charger', description: '10,000 mAh slim bank.', long_description: 'USB-C fast charge pack to keep your phone and earbuds alive during long campus days.', manufacturer: 'ChargeUp', use_cases: ['commute', 'travel', 'study', 'gaming'], category: 'electronics', price: 39.00, discounted_price: 32.00, average_rating: 4.4, review_count: 10, rating_distribution: [0,1,2,3,4] },
-            { product_ID: 'MOCK-LAMP-1', name: 'Desk Lamp', description: 'LED study lamp.', long_description: 'Adjustable arm with warm and cool light modes plus a USB port for late-night sessions.', manufacturer: 'BrightDesk', use_cases: ['study', 'dorm', 'work'], category: 'electronics', price: 34.00, discounted_price: 29.00, average_rating: 4.2, review_count: 10, rating_distribution: [0,1,2,3,4] },
-            { product_ID: 'MOCK-HOODIE-1', name: 'Campus Hoodie', description: 'Soft fleece hoodie.', long_description: 'Midweight fleece with a roomy hood and front pocket, ideal for chilly lecture halls.', manufacturer: 'Campus Threads', use_cases: ['commute', 'study', 'casual days'], category: 'apparel', price: 42.00, discounted_price: 36.00, average_rating: 4.5, review_count: 10, rating_distribution: [0,0,2,3,5] },
-            { product_ID: 'MOCK-TOTE-1', name: 'Canvas Tote', description: 'Everyday carry tote.', long_description: 'Thick canvas with an inner laptop sleeve and key clip for quick class hops.', manufacturer: 'Northline', use_cases: ['commute', 'study', 'gym'], category: 'bags', price: 35.00, discounted_price: 30.00, average_rating: 4.3, review_count: 10, rating_distribution: [0,1,2,3,4] },
-            { product_ID: 'MOCK-SPEAKER-1', name: 'Mini Bluetooth Speaker', description: 'Pocket-sized speaker.', long_description: 'Splash-resistant mini speaker with 10-hour battery for dorm hangs and picnics.', manufacturer: 'SoundLab', use_cases: ['dorm', 'travel', 'casual hangouts'], category: 'electronics', price: 45.00, discounted_price: 38.00, average_rating: 4.1, review_count: 10, rating_distribution: [0,1,3,3,3] },
-            { product_ID: 'MOCK-PLANNER-1', name: 'Weekly Planner', description: 'Notebook planner.', long_description: 'Undated weekly planner with task blocks and habit trackers to stay on top of classes.', manufacturer: 'Paperly', use_cases: ['study', 'work', 'dorm'], category: 'apparel', price: 16.00, discounted_price: 14.00, average_rating: 3.3, review_count: 10, rating_distribution: [1,2,3,3,1] },
-            { product_ID: 'MOCK-HANGER-1', name: 'Slim Hangers (20-pack)', description: 'Space-saving velvet hangers.', long_description: 'Slim velvet hangers keep clothes from slipping and open up precious dorm closet space.', manufacturer: 'DormCo', use_cases: ['dorm', 'casual days', 'presentations'], category: 'apparel', price: 22.00, discounted_price: 18.00, average_rating: 4.2, review_count: 10, rating_distribution: [0,1,2,3,4] },
-            { product_ID: 'MOCK-STRIP-1', name: 'Surge Protector Power Strip', description: '6 outlets + 3 USB.', long_description: 'Flat-plug surge protector with a 6ft cord, 6 AC outlets, and 3 USB ports for laptops, lamps, and phones.', manufacturer: 'ChargeUp', use_cases: ['dorm', 'study', 'work'], category: 'electronics', price: 27.00, discounted_price: 23.00, average_rating: 4.4, review_count: 10, rating_distribution: [0,1,2,3,4] },
-            { product_ID: 'MOCK-LIGHT-CLIP', name: 'Clip-On Study Lamp', description: 'Adjustable clip lamp.', long_description: 'LED clip-on lamp with gooseneck arm and three brightness levels for shared rooms or bunk beds.', manufacturer: 'BrightDesk', use_cases: ['study', 'dorm', 'late nights'], category: 'electronics', price: 19.00, discounted_price: 16.00, average_rating: 4.2, review_count: 10, rating_distribution: [0,1,2,3,4] },
-            { product_ID: 'MOCK-BINS-1', name: 'Foldable Storage Bins (2-pack)', description: 'Fabric storage cubes.', long_description: 'Collapsible fabric bins with handles to stash snacks, notebooks, or laundry supplies under a bed.', manufacturer: 'DormCo', use_cases: ['dorm', 'organization', 'study'], category: 'bags', price: 24.00, discounted_price: 20.00, average_rating: 4.1, review_count: 10, rating_distribution: [0,1,3,3,3] }
-        ];
-
         async function loadProducts() {
             const search = document.getElementById('searchInput').value.trim();
             const categoryFilter = document.getElementById('filterCategory').value;
             const minPriceVal = toNumber(document.getElementById('minPrice').value);
             const maxPriceVal = toNumber(document.getElementById('maxPrice').value);
             const minRatingVal = toNumber(document.getElementById('minRating').value);
+            const useCaseFilter = getSelectedUseCases();
             const sortBy = document.getElementById('sortBy').value;
             const statusEl = document.getElementById('status');
             const container = document.getElementById('products');
             statusEl.textContent = 'Loading products...';
             container.innerHTML = '';
-            const allowedCategories = ['shoes', 'bags', 'electronics', 'apparel'];
 
             try {
-                let url = '/product-catalog/search?';
+                let url = '/product-catalog/search';
                 if (search) {
-                    url += 'key=' + encodeURIComponent(search);
+                    url += '?key=' + encodeURIComponent(search);
                 }
-                const res = await fetch(url);
-                let results = [];
-                if (res.ok) {
-                    const data = await res.json();
-                    results = data.results || [];
-                    results = results.filter(p => allowedCategories.includes((p.category || '').toLowerCase()));
-                    results = filterList(results, search, categoryFilter, { minPriceVal, maxPriceVal, minRatingVal, sortBy });
+                const payload = {
+                    category: categoryFilter || null,
+                    min_price: minPriceVal,
+                    max_price: maxPriceVal,
+                    min_rating: minRatingVal,
+                    use_case: useCaseFilter,
+                    sortBy
+                };
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!res.ok) {
+                    statusEl.textContent = 'Could not load products.';
+                    renderProducts([], statusEl);
+                    return;
                 }
-                const mockFiltered = filterList(mockProducts, search, categoryFilter, { minPriceVal, maxPriceVal, minRatingVal, sortBy });
-                const merged = mergeUniqueById(results, mockFiltered);
-                if (!merged || merged.length === 0) {
+                const data = await res.json();
+                let results = data.results || [];
+                results = filterList(results, { keyword: search, categoryFilter, minPriceVal, maxPriceVal, minRatingVal, sortBy, useCaseFilter });
+                if (!results || results.length === 0) {
                     statusEl.textContent = 'No matches found.';
                     renderProducts([], statusEl);
                     return;
                 }
-                statusEl.textContent = `${merged.length} products`;
-                renderProducts(merged, statusEl);
+                statusEl.textContent = `${results.length} products`;
+                renderProducts(results, statusEl);
             } catch (err) {
-                statusEl.textContent = '';
-                renderProducts(filterList(mockProducts, search, categoryFilter, { minPriceVal, maxPriceVal, minRatingVal, sortBy }), statusEl);
+                statusEl.textContent = 'Error loading products.';
+                renderProducts([], statusEl);
                 console.error(err);
             }
         }
 
-        function filterList(list, keyword, categoryFilter, { minPriceVal, maxPriceVal, minRatingVal, sortBy }) {
+        function getSelectedUseCases() {
+            const select = document.getElementById('useCaseSelect');
+            return Array.from(select.selectedOptions || []).map(o => o.value).filter(Boolean);
+        }
+
+        function filterList(list, { keyword, categoryFilter, minPriceVal, maxPriceVal, minRatingVal, sortBy, useCaseFilter }) {
             const k = (keyword || "").toLowerCase();
-            return list.filter(p => {
+            const useCases = new Set((useCaseFilter || []).map(v => v.toLowerCase()));
+            const allowedCategories = ['shoes', 'bags', 'electronics', 'apparel'];
+            return (list || []).filter(p => {
+                const matchesAllowed = allowedCategories.includes((p.category || '').toLowerCase());
                 const matchesText = !k || (p.name || '').toLowerCase().includes(k);
                 const matchesCat = !categoryFilter || (p.category || '').toLowerCase() === categoryFilter.toLowerCase();
                 const priceVal = p.discounted_price ?? p.price ?? 0;
@@ -203,21 +202,10 @@
                 const matchesMaxPrice = !maxPriceVal || priceVal <= maxPriceVal;
                 const ratingVal = (typeof p.average_rating === 'number') ? p.average_rating : parseFloat(p.average_rating);
                 const matchesRating = !minRatingVal || (ratingVal && ratingVal >= minRatingVal);
-                return matchesText && matchesCat && matchesMinPrice && matchesMaxPrice && matchesRating;
+                const productUseCases = normalizeUseCases(p.use_cases).map(u => u.toLowerCase());
+                const matchesUseCase = useCases.size === 0 || productUseCases.some(u => useCases.has(u));
+                return matchesAllowed && matchesText && matchesCat && matchesMinPrice && matchesMaxPrice && matchesRating && matchesUseCase;
             }).sort((a, b) => sortProducts(a, b, sortBy));
-        }
-
-        function mergeUniqueById(primary, secondary) {
-            const map = new Map();
-            (primary || []).forEach(p => {
-                if (p && p.product_ID) map.set(p.product_ID, p);
-            });
-            (secondary || []).forEach(p => {
-                if (p && p.product_ID && !map.has(p.product_ID)) {
-                    map.set(p.product_ID, p);
-                }
-            });
-            return Array.from(map.values());
         }
 
         function clearSearch() {
@@ -227,6 +215,8 @@
             document.getElementById('minRating').value = 1;
             updateRatingLabel();
             document.getElementById('filterCategory').value = '';
+            const useCaseSelect = document.getElementById('useCaseSelect');
+            if (useCaseSelect) Array.from(useCaseSelect.options).forEach(opt => opt.selected = false);
             document.getElementById('sortBy').value = '';
             loadProducts();
         }
@@ -358,8 +348,8 @@
                 }
                 const data = await res.json();
                 const description = cleanText(data.description || product.long_description || product.description || 'No description.');
-                const maker = product.manufacturer || 'Generic Co.';
-                const uses = product.use_cases || ['Study time', 'Gym', 'Commute'];
+                const maker = data.manufacturer || product.manufacturer || 'Generic Co.';
+                const uses = normalizeUseCases(data.use_cases || product.use_cases);
                 detail.innerHTML = `
                     <div class="muted">Product ID: ${product.product_ID}</div>
                     <div class="muted">Manufacturer: ${maker}</div>
@@ -372,7 +362,7 @@
             } catch (err) {
                 const description = cleanText(product.long_description || product.description || 'No description.');
                 const maker = product.manufacturer || 'Generic Co.';
-                const uses = product.use_cases || ['Study time', 'Gym', 'Commute'];
+                const uses = normalizeUseCases(product.use_cases);
                 detail.innerHTML = `
                     <div class="muted">Product ID: ${product.product_ID}</div>
                     <div class="muted">Manufacturer: ${maker}</div>
@@ -421,9 +411,14 @@
         async function addBundle(productIds) {
             const statusEl = document.getElementById('cart-status');
             for (const id of productIds) {
-                const prod = mockProducts.find(p => p.product_ID === id);
-                if (!prod) continue;
-                await addToCart(prod, 1);
+                try {
+                    const res = await fetch('/product-catalog/' + encodeURIComponent(id));
+                    if (!res.ok) continue;
+                    const prod = await res.json();
+                    await addToCart(prod, 1);
+                } catch (err) {
+                    console.error('Bundle add failed for', id, err);
+                }
             }
             statusEl.textContent = 'Bundle added (items added individually).';
         }
@@ -572,6 +567,12 @@
             }
         }
 
+        function normalizeUseCases(raw) {
+            if (Array.isArray(raw)) return raw.filter(Boolean);
+            if (!raw) return [];
+            return String(raw).split(',').map(u => u.trim()).filter(Boolean);
+        }
+
         async function removeCartItem(productId) {
             try {
                 const res = await fetch('/shopping-cart/products/' + encodeURIComponent(productId), {
@@ -597,8 +598,28 @@
             }, {});
         }
 
+        async function loadUseCaseOptions() {
+            const select = document.getElementById('useCaseSelect');
+            if (!select) return;
+            select.innerHTML = '<option disabled>Loading...</option>';
+            try {
+                const res = await fetch('/product-catalog/use-cases');
+                if (!res.ok) throw new Error('Failed to load use cases');
+                const list = await res.json();
+                select.innerHTML = '';
+                (list || []).forEach(u => {
+                    const opt = document.createElement('option');
+                    opt.value = u;
+                    opt.textContent = u;
+                    select.appendChild(opt);
+                });
+            } catch (err) {
+                select.innerHTML = '';
+            }
+        }
+
         // initial load
-        loadProducts();
+        loadUseCaseOptions().finally(() => loadProducts());
         loadCart();
         updateRatingLabel();
         document.getElementById('minRating').addEventListener('input', () => updateRatingLabel(false));

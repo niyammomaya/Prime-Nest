@@ -46,6 +46,7 @@ const transporter = nodemailer.createTransport({
 
 const minReviewScore = 1;
 const maxReviewScore = 5;
+let hasPlacedAtColumn = false;
 
 function seededRandom(seed) {
     let x = seed % 2147483647;
@@ -225,7 +226,7 @@ const server = http.createServer((req, res) => {
         let userEmail = await getEmail(req);
         let isLoggedIn = (!(userEmail instanceof Error) && userEmail != -1);
         let pathRoot = urlParts[0] || "";
-        const publicPaths = ["", "google-login", "style.css", "favicon.ico", "login.html", "login", "auth-status"];
+        const publicPaths = ["", "google-login", "style.css", "favicon.ico", "login.html", "login", "auth-status", "assets"];
         if (!isLoggedIn && publicPaths.indexOf(pathRoot) === -1) {
             res.writeHead(302, { "Location": "/" });
             res.end();
@@ -302,6 +303,13 @@ const server = http.createServer((req, res) => {
                                 resMsg.hdrs = {"Content-Type" : "text/html"};
                                 resMsg.body = "Failure while accessing Google API";
                             } else if (validID != -1) {
+                                const lowerEmail = (validID || "").toLowerCase();
+                                if (!lowerEmail.endsWith('.edu')) {
+                                    resMsg.code = 403;
+                                    resMsg.hdrs = {"Content-Type" : "text/html"};
+                                    resMsg.body = "Only .edu accounts are allowed.";
+                                    break;
+                                }
                                 resMsg.code = 200;
                                 let now = new Date(); 
                                 let time = now.getTime(); 
@@ -828,6 +836,8 @@ const getProductInfo = async(req, body, product_ID) => { // returns stringified 
     await dBCon.promise().query(productQuery).then(([ result ]) => {
         if (result[0]) {
             resMsg.body = result[0];
+            resMsg.body.use_cases = normalizeUseCasesField(resMsg.body.use_cases);
+            resMsg.body.manufacturer = deterministicManufacturer(product_ID);
         } else {
             isProduct = false;
         }
@@ -880,6 +890,24 @@ function failedDB() { // can be called when the server fails to connect to the d
     resMsg.hdrs = {"Content-Type" : "text/html"};
     resMsg.body = "Failed access to mySQL.";
     return resMsg;
+}
+
+function deterministicManufacturer(productId) {
+    const names = [
+        "Northline Labs", "Campus Collective", "TerraForge", "Strata Supply", "BrightPeak",
+        "MetroGear", "Aurora Works", "Harbor & Field", "Everstride", "Summit Grid",
+        "Cinderwave", "Bluehaven", "Ironvale", "ValleyCraft", "Echo Thread"
+    ];
+    let sum = 0;
+    const id = String(productId || "");
+    for (let i = 0; i < id.length; i++) sum += id.charCodeAt(i);
+    return names[sum % names.length];
+}
+
+function normalizeUseCasesField(raw) {
+    if (Array.isArray(raw)) return raw.filter(Boolean);
+    if (!raw) return [];
+    return String(raw).split(',').map(u => u.trim()).filter(Boolean);
 }
 
 async function searchOrders(req, body, keyword) {
@@ -972,89 +1000,94 @@ async function searchProducts(req, body, keyword) {
     let whereClauses = [];
     let parameters = [];
     let min_price = -1;
-    if (body != "") {
-            let filters;
+    let filters = {};
+    if (body) {
         try {
             filters = JSON.parse(body);
-        } catch (error) {
-            resMsg.code = 400;
-            resMsg.hdrs = {"Content-Type" : "text/html"};
-            resMsg.body = error.toString();
-            return resMsg;
-        }
-        if (filters.category) { // filter by category
-            whereClauses.push("category = ?");
-            parameters.push(filters.category);
-        }
-        if (filters.min_price) { // minimum price
-            whereClauses.push("price >= ?");
-            parameters.push(filters.min_price);
-            min_price = filters.min_price;
-        }
-        if (filters.max_price) { // maximum price
-            whereClauses.push("price <= ?");
-            parameters.push(filters.max_price);
-        }
-        if (filters.material) { // filter by material
-            whereClauses.push("material = ?");
-            parameters.push(filters.material);
-        }
-        if (filters.color) { // filter by color
-            whereClauses.push("color = ?");
-            parameters.push(filters.color);
-        }
-        if (filters.min_length) { // filter by minimum length
-            whereClauses.push("length_in >= ?");
-            parameters.push(filters.min_length);
-        }
-        if (filters.max_length) { // filter by maximum length
-            whereClauses.push("length_in <= ?");
-            parameters.push(filters.max_length);
-        }
-        if (filters.min_width) { // filter by minimum width
-            whereClauses.push("width_in >= ?");
-            parameters.push(filters.min_width);
-        }
-        if (filters.max_width) { // filter by maximum width
-            whereClauses.push("width_in <= ?");
-            parameters.push(filters.max_width);
-        }
-        if (filters.min_height) { // filter by minimum height
-            whereClauses.push("height_in >= ?");
-            parameters.push(filters.min_height);
-        }
-        if (filters.max_height) { // filter by maximum height
-            whereClauses.push("height_in <= ?");
-            parameters.push(filters.max_height);
-        }
-        if (filters.min_weight) { // filter by minimum weight
-            whereClauses.push("weight_oz >= ?");
-            parameters.push(filters.min_weight);
-        }
-        if (filters.max_weight) { // filter by maximum weight
-            whereClauses.push("weight_oz <= ?");
-            parameters.push(filters.max_weight);
-        }
-        if (filters.length_in) { // filter by length
-            whereClauses.push("length_in = ?");
-            parameters.push(filters.length_in);
-        }
-        if (filters.width_in) { // filter by width
-            whereClauses.push("width_in = ?");
-            parameters.push(filters.width_in);
-        }
-        if (filters.height_in) { // filter by height
-            whereClauses.push("height_in = ?");
-            parameters.push(filters.height_in);
-        }
-        if (filters.weight_oz) { // filter by weight
-            whereClauses.push("weight_oz = ?");
-            parameters.push(filters.weight_oz);
-        }
-        if (filters.price) { // filter by specific price
-            whereClauses.push("price = ?");
-            parameters.push(filters.price);
-        }
+        } catch (_) {}
+    }
+    if (filters.category) { // filter by category
+        whereClauses.push("category = ?");
+        parameters.push(filters.category);
+    }
+    if (filters.min_price) { // minimum price
+        whereClauses.push("price >= ?");
+        parameters.push(filters.min_price);
+        min_price = filters.min_price;
+    }
+    if (filters.max_price) { // maximum price
+        whereClauses.push("price <= ?");
+        parameters.push(filters.max_price);
+    }
+    if (filters.material) { // filter by material
+        whereClauses.push("material = ?");
+        parameters.push(filters.material);
+    }
+    if (filters.color) { // filter by color
+        whereClauses.push("color = ?");
+        parameters.push(filters.color);
+    }
+    if (filters.min_length) { // filter by minimum length
+        whereClauses.push("length_in >= ?");
+        parameters.push(filters.min_length);
+    }
+    if (filters.max_length) { // filter by maximum length
+        whereClauses.push("length_in <= ?");
+        parameters.push(filters.max_length);
+    }
+    if (filters.min_width) { // filter by minimum width
+        whereClauses.push("width_in >= ?");
+        parameters.push(filters.min_width);
+    }
+    if (filters.max_width) { // filter by maximum width
+        whereClauses.push("width_in <= ?");
+        parameters.push(filters.max_width);
+    }
+    if (filters.min_height) { // filter by minimum height
+        whereClauses.push("height_in >= ?");
+        parameters.push(filters.min_height);
+    }
+    if (filters.max_height) { // filter by maximum height
+        whereClauses.push("height_in <= ?");
+        parameters.push(filters.max_height);
+    }
+    if (filters.min_weight) { // filter by minimum weight
+        whereClauses.push("weight_oz >= ?");
+        parameters.push(filters.min_weight);
+    }
+    if (filters.max_weight) { // filter by maximum weight
+        whereClauses.push("weight_oz <= ?");
+        parameters.push(filters.max_weight);
+    }
+    if (filters.length_in) { // filter by length
+        whereClauses.push("length_in = ?");
+        parameters.push(filters.length_in);
+    }
+    if (filters.width_in) { // filter by width
+        whereClauses.push("width_in = ?");
+        parameters.push(filters.width_in);
+    }
+    if (filters.height_in) { // filter by height
+        whereClauses.push("height_in = ?");
+        parameters.push(filters.height_in);
+    }
+    if (filters.weight_oz) { // filter by weight
+        whereClauses.push("weight_oz = ?");
+        parameters.push(filters.weight_oz);
+    }
+    if (filters.price) { // filter by specific price
+        whereClauses.push("price = ?");
+        parameters.push(filters.price);
+    }
+    if (filters.use_case || filters.use_cases) { // filter by use cases
+        const rawCases = Array.isArray(filters.use_case || filters.use_cases)
+            ? (filters.use_case || filters.use_cases)
+            : String(filters.use_case || filters.use_cases || '').split(',');
+        const cleaned = rawCases.map(v => v.trim().toLowerCase()).filter(Boolean);
+        cleaned.forEach(c => {
+            whereClauses.push("LOWER(use_cases) LIKE ?");
+            parameters.push(`%${c}%`);
+        });
     }
     let searchQuery = baseQuery;
     if (whereClauses.length > 0) {
@@ -1077,6 +1110,7 @@ async function searchProducts(req, body, keyword) {
     products = products.filter(p => allowedCategories.includes((p.category || '').toLowerCase()));
 
     let discountInfo;
+    const minRatingFilter = filters.min_rating ? parseFloat(filters.min_rating) : null;
     for (let i = 0; i < products.length; i++) {
         delete products[i].score;
         delete products[i].id;
@@ -1085,17 +1119,19 @@ async function searchProducts(req, body, keyword) {
         delete products[i].match;
         let currentProduct = products[i];
         discountInfo = await getDiscounts(currentProduct.product_ID, currentProduct.price);
-        if (typeof discounts === "string") {
-            currentProduct.discounted_price = currentProduct.price;
-        } else {
-            currentProduct.discounted_price = discountInfo[0];
-        }
+        const discountedPrice = (typeof discountInfo === "string") ? currentProduct.price : discountInfo[0];
+        currentProduct.discounted_price = discountedPrice;
+        currentProduct.use_cases = normalizeUseCasesField(currentProduct.use_cases);
         const mock = getMockReviewData(currentProduct.product_ID);
         currentProduct.average_rating = mock.average_rating;
         currentProduct.review_count = mock.count;
         currentProduct.rating_distribution = mock.distribution;
+        currentProduct.manufacturer = deterministicManufacturer(currentProduct.product_ID);
         products[i] = currentProduct;
-        if (min_price > discountInfo[0])
+        if (minRatingFilter && currentProduct.average_rating && currentProduct.average_rating < minRatingFilter) {
+            products[i] = null;
+        }
+        if (min_price > discountedPrice)
             if (i == 0) 
             products[0] = null;
             else
@@ -1105,6 +1141,29 @@ async function searchProducts(req, body, keyword) {
     if (Array.isArray(products)) {
         products = products.filter((product) => product != null);
     }
+
+    const sortBy = filters.sortBy || filters.sort_by || null;
+    if (sortBy) {
+        products.sort((a, b) => {
+            const priceA = a.discounted_price ?? a.price ?? 0;
+            const priceB = b.discounted_price ?? b.price ?? 0;
+            const ratingA = a.average_rating ?? 0;
+            const ratingB = b.average_rating ?? 0;
+            switch (sortBy) {
+                case 'price-asc':
+                    return priceA - priceB;
+                case 'price-desc':
+                    return priceB - priceA;
+                case 'rating-desc':
+                    return ratingB - ratingA;
+                case 'name-asc':
+                    return (a.name || '').localeCompare(b.name || '');
+                default:
+                    return 0;
+            }
+        });
+    }
+
     resMsg.code = 200;
     resMsg.hdrs = {"Content-Type" : "application/json"};
     let results = {};
@@ -1114,24 +1173,55 @@ async function searchProducts(req, body, keyword) {
     return resMsg;
 }
 
-async function productCatalog(req, body, urlParts) {
-    switch(req.method) {
-        case 'GET':
-            if (urlParts[1]) {
-                if (urlParts[1].startsWith("search?")) {
-                    let param = querystring.decode(urlParts[1].substring(7));
-                    let keyword = param.key || null;
-                    return await searchProducts(req, body, keyword);
-                } else {
-                    let product_ID = urlParts[1];
-                    return await getProductInfo(req, body, product_ID);
-                }
-            } else {
-                return {};
-            }
-        default:
-            return {};
+async function listUseCases() {
+    try {
+        const [rows] = await dBCon.promise().query("SELECT use_cases FROM products WHERE use_cases IS NOT NULL AND use_cases <> ''");
+        const set = new Set();
+        rows.forEach(r => {
+            normalizeUseCasesField(r.use_cases).forEach(u => {
+                if (u) set.add(u);
+            });
+        });
+        const limited = Array.from(set).sort().slice(0, 5);
+        return { code: 200, hdrs: {"Content-Type": "application/json"}, body: JSON.stringify(limited) };
+    } catch (err) {
+        return failedDB();
     }
+}
+
+async function ensurePlacedAtColumn() {
+    if (hasPlacedAtColumn) return;
+    try {
+        const [rows] = await dBCon.promise().query("SHOW COLUMNS FROM orders LIKE 'placed_at'");
+        if (!rows.length) {
+            await dBCon.promise().query("ALTER TABLE orders ADD COLUMN placed_at DATETIME DEFAULT CURRENT_TIMESTAMP");
+        }
+        hasPlacedAtColumn = true;
+    } catch (err) {
+        hasPlacedAtColumn = false;
+    }
+}
+
+async function productCatalog(req, body, urlParts) {
+    const isSearchPath = urlParts[1] && urlParts[1].startsWith("search");
+    const keyword = (urlParts[1] && urlParts[1].includes("?"))
+        ? (querystring.decode(urlParts[1].substring(urlParts[1].indexOf("?") + 1)).key || null)
+        : null;
+
+    if (urlParts[1] === 'use-cases' && req.method === 'GET') {
+        return await listUseCases();
+    }
+
+    if (isSearchPath && (req.method === 'GET' || req.method === 'POST')) {
+        return await searchProducts(req, body, keyword);
+    }
+
+    if (req.method === 'GET' && urlParts[1]) {
+        let product_ID = urlParts[1];
+        return await getProductInfo(req, body, product_ID);
+    }
+
+    return {};
 }
 
 
@@ -1337,12 +1427,54 @@ async function orders(req, body, urlParts) {
         case 'POST':
             if (urlParts[1] == "create")
                 return await makeOrder(req, body, urlParts);
+            else if (urlParts[1] == "demo")
+                return await createDemoOrder(req);
             else if (urlParts[1] == "cancel")
                 return cancelOrder(req, body, urlParts);
             else if (urlParts[1] == "return")
                 return returnOrder(req, body, urlParts);
         default:
             return {};
+    }
+}
+
+async function createDemoOrder(req) {
+    const email = await getEmail(req);
+    if (email instanceof Error || email === -1) {
+        return { code: 401, hdrs: {"Content-Type":"text/plain"}, body: "Please log in first." };
+    }
+
+    try {
+        await ensurePlacedAtColumn();
+        const [cartItems] = await dBCon.promise().query(
+            `SELECT p.product_ID, p.name, p.price, scp.quantity 
+             FROM shoppingcartproducts scp
+             JOIN products p ON scp.product_ID = p.product_ID
+             WHERE scp.email = ?`,
+            [email]
+        );
+        if (!cartItems || cartItems.length === 0) {
+            return { code: 400, hdrs: {"Content-Type":"text/plain"}, body: "Cart is empty." };
+        }
+        const productsCost = cartItems.reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 0), 0);
+        const totalCost = productsCost;
+        const [[{ next }]] = await dBCon.promise().query("SELECT COALESCE(MAX(order_ID), 0) + 1 AS next FROM orders");
+        const orderId = next;
+        await dBCon.promise().query(
+            `INSERT INTO orders (order_ID, email, date_made, payment_method, products_cost, tax_cost, shipping_cost, delivery_address, billing_address, status, placed_at)
+             VALUES (?, ?, NOW(), 'demo', ?, 0, 0, 'Demo address', 'Demo billing', 'not shipped', NOW())`,
+            [orderId, email, productsCost]
+        );
+        for (const item of cartItems) {
+            await dBCon.promise().query(
+                `INSERT INTO orderproducts (order_ID, product_ID, quantity) VALUES (?, ?, ?)`,
+                [orderId, item.product_ID, item.quantity]
+            );
+        }
+        await dBCon.promise().query(`DELETE FROM shoppingcartproducts WHERE email = ?`, [email]);
+        return { code: 200, hdrs: {"Content-Type":"application/json"}, body: JSON.stringify({ order_ID: orderId, total: totalCost }) };
+    } catch (err) {
+        return failedDB();
     }
 }
 
@@ -1366,38 +1498,37 @@ async function deleteReview(productID, email) {
 }
 
 async function viewOrders(req, body, urlParts) {
-    let resMsg = {};
     let email = await getEmail(req); 
-    let query = "select * from orders where email = '" + email + "'";
-    const getOrderHistory = async() => {
-        let resMsg = {};
-        try {
-            const [result] = await dBCon.promise().query(query);
-            let output = result || [];
-            if (!output.length) {
-                output = [{
-                    order_ID: 'MOCK-ORDER-001',
-                    email,
-                    date_made: '2024-09-14',
-                    payment_method: 'card',
-                    products_cost: 98.99,
-                    tax_cost: 0,
-                    shipping_cost: 0,
-                    delivery_address: 'Campus Mailbox',
-                    billing_address: 'Campus Billing',
-                    status: 'delivered',
-                    total_cost: 98.99
-                }];
-            }
-            resMsg.code = 200;
-            resMsg.hdrs = {"Content-Type" : "application/json"};
-            resMsg.body = JSON.stringify(output);
-        } catch (error) {
-            resMsg = failedDB();
-        }
-        return resMsg;
+    if (email instanceof Error || email === -1) {
+        return { code: 401, hdrs: {"Content-Type" : "application/json"}, body: JSON.stringify({ message: "Please login to view orders." }) };
     }
-    return await getOrderHistory();
+
+    try {
+        const [orders] = await dBCon.promise().query("select * from orders where email = ? order by date_made desc", [email]);
+        for (const order of orders) {
+            const [items] = await dBCon.promise().query(
+                `select op.product_ID, op.quantity, p.name, p.price, p.category 
+                 from orderproducts op 
+                 join products p on op.product_ID = p.product_ID 
+                 where op.order_ID = ?`,
+                [order.order_ID]
+            );
+            order.items = items.map(it => ({
+                product_ID: it.product_ID,
+                name: it.name,
+                quantity: it.quantity,
+                category: it.category,
+                price: it.price,
+                line_total: (it.price || 0) * (it.quantity || 0)
+            }));
+            if (order.status === 'not shipped') {
+                order.display_status = 'in progress';
+            }
+        }
+        return { code: 200, hdrs: {"Content-Type" : "application/json"}, body: JSON.stringify(orders || []) };
+    } catch (error) {
+        return failedDB();
+    }
 }
 
 async function viewShoppingCart(req) {
@@ -1802,8 +1933,10 @@ async function executeQueries(query) {
 
 async function insertOrder(order) {
     let body = "";
-    const orderAttributes = "(order_ID, email, date_made, payment_method, products_cost, tax_cost, shipping_cost, delivery_address, billing_address, status)";
-    let orderValues = `(${order.order_ID}, '${order.email}', '${order.date_made}', '${order.payment_method}', ${order.products_cost}, ${order.tax_cost}, ${order.shipping_cost}, '${order.delivery_address}', '${order.billing_address}', '${order.status}')`;
+    await ensurePlacedAtColumn();
+    const orderAttributes = "(order_ID, email, date_made, payment_method, products_cost, tax_cost, shipping_cost, delivery_address, billing_address, status, placed_at)";
+    const placedAt = order.placed_at || new Date().toISOString().slice(0,19).replace('T',' ');
+    let orderValues = `(${order.order_ID}, '${order.email}', '${order.date_made}', '${order.payment_method}', ${order.products_cost}, ${order.tax_cost}, ${order.shipping_cost}, '${order.delivery_address}', '${order.billing_address}', '${order.status}', '${placedAt}')`;
     let query = "insert into orders " + orderAttributes + " values "  + orderValues;
     return new Promise((resolve, reject) => {
         dBCon.query(query, (err, result) => {

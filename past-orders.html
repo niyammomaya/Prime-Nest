@@ -17,30 +17,60 @@
       <button type="button" onclick="signOut()">Sign out</button>
     </div>
   </header>
-  <main>
+    <main>
     <section>
       <h2>Past Orders</h2>
-      <p class="tagline">Mock history for quick reference.</p>
-      <div id="past-orders" class="stack">
-        <div class="card">
-          <div><strong>Order ID:</strong> MOCK-ORDER-001</div>
-          <div class="muted">Date: 2024-09-14</div>
-          <div class="muted">Status: delivered</div>
-          <div class="muted">Items:</div>
-          <ul class="muted" style="padding-left:18px;">
-            <li>Canvas Sneakers (Qty 1) - $39.99</li>
-            <li>Day Backpack (Qty 1) - $59.00</li>
-          </ul>
-          <div class="muted">Total: $98.99</div>
-        </div>
-      </div>
+      <p class="tagline">Live order history with items and dates.</p>
+      <div id="past-orders" class="stack"></div>
     </section>
   </main>
   <script>
+    async function loadPastOrders() {
+      const container = document.getElementById('past-orders');
+      container.innerHTML = '<div class="muted">Loading orders...</div>';
+      try {
+        const res = await fetch('/orders');
+        if (res.status === 401) {
+          container.innerHTML = '<div class="muted">Please sign in to view your orders.</div>';
+          return;
+        }
+        if (!res.ok) {
+          container.innerHTML = '<div class="muted">Could not load orders.</div>';
+          return;
+        }
+        const orders = await res.json();
+        if (!orders || orders.length === 0) {
+          container.innerHTML = '<div class="muted">No orders yet.</div>';
+          return;
+        }
+        container.innerHTML = '';
+        orders.forEach(order => {
+          const card = document.createElement('div');
+          card.className = 'card';
+          const items = Array.isArray(order.items) ? order.items : [];
+          const listItems = items.map(item => `<li>${item.name || item.product_ID} (Qty ${item.quantity || 0}) - $${(item.price || 0).toFixed(2)}</li>`).join('');
+          card.innerHTML = `
+            <div><strong>Order ID:</strong> ${order.order_ID || 'N/A'}</div>
+            <div class="muted">Date: ${order.date_made ? new Date(order.date_made).toDateString() : 'N/A'}</div>
+            <div class="muted">Status: ${order.status || 'N/A'}</div>
+            <div class="muted">Items:</div>
+            <ul class="muted" style="padding-left:18px;">${listItems || '<li>No items</li>'}</ul>
+            <div class="muted">Total: $${(order.total_cost ?? order.products_cost ?? 0).toFixed(2)}</div>
+          `;
+          container.appendChild(card);
+        });
+      } catch (err) {
+        container.innerHTML = '<div class="muted">Error loading orders.</div>';
+        console.error(err);
+      }
+    }
+
     async function signOut() {
       await fetch("/logout", { method: "POST", headers: { "Content-Type": "text/html" } });
       document.location = "/";
     }
+
+    loadPastOrders();
   </script>
 </body>
 </html>

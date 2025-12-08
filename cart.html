@@ -23,6 +23,7 @@
             <p class="tagline">Items you've added plus a running total.</p>
             <div class="controls">
                 <button type="button" onclick="startCheckout()">Checkout Now</button>
+                <button type="button" onclick="demoCheckout()" style="background:#0f766e;">Demo Checkout (no payment)</button>
             </div>
             <div id="cart-items" class="stack"></div>
             <div id="cart-total" class="cart-total"></div>
@@ -131,6 +132,23 @@
                 loadCart();
             } catch (err) {
                 alert('Error updating quantity');
+            }
+        }
+
+        async function demoCheckout() {
+            const status = document.getElementById('cart-total');
+            status.textContent = 'Creating demo order...';
+            try {
+                const res = await fetch('/orders/demo', { method: 'POST' });
+                if (!res.ok) {
+                    const msg = await res.text();
+                    status.textContent = 'Demo checkout failed: ' + msg;
+                    return;
+                }
+                status.textContent = 'Demo order placed.';
+                loadCart();
+            } catch (err) {
+                status.textContent = 'Demo checkout error.';
             }
         }
 
